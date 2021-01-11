@@ -1,5 +1,5 @@
 CXX := clang++
-CXXFLAGS := -std=c++17 -Weverything -Wno-c++98-compat-pedantic -Wno-missing-prototypes
+CXXFLAGS := -std=c++17 -Weverything -Wno-c++98-compat-pedantic -Wno-missing-prototypes -Wno-padded
 DEBUGFLAGS := -g -fsanitize=undefined
 
 all: format test

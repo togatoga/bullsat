@@ -13,7 +13,7 @@ enum class Status { Sat, Unsat, Unknown };
 enum class LitBool { True, False, Undefine };
 using Var = int;
 struct Lit;
-using ClauseIdx = int;
+using ClauseIdx = size_t;
 using Clause = std::vector<Lit>;
 
 // x is
