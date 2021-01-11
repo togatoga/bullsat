@@ -137,8 +137,10 @@ public:
           // Found a new lit to watch
           if (eval(clause[k]) != LitBool::False) {
             std::swap(clause[1], clause[k]);
+            // Remove a value(swap the last one and pop back)
             watcher[i] = watcher.back();
             watcher.pop_back();
+            // New watch
             watchers[(~clause[1]).lidx()].push_back(cidx);
             i -= 1;
             goto nextclause;
@@ -156,7 +158,7 @@ public:
           // All literals excepting first are false
           // Unit Propagation
           assert(eval(first) == LitBool::Undefine);
-          enqueue(first, std::make_optional(cidx));
+          enqueue(first, cidx);
         }
       nextclause:;
       }
@@ -174,15 +176,34 @@ public:
 
   void analyze(ClauseIdx cidx) {}
   Status solve() {
+
     while (true) {
       std::optional<ClauseIdx> conflict = propagate();
       if (conflict) {
+        if (decision_level() == 0) {
+          return Status::Unsat;
+        }
         ClauseIdx cidx = conflict.value();
         analyze(cidx);
       } else {
         // No Conflict
+        std::optional<Lit> next = std::nullopt;
+        for (size_t v = 0; v < assings.size(); v++) {
+          if (!levels[v].has_value()) {
+            // undefine
+            next = Lit(static_cast<Var>(v), assings[v]);
+            break;
+          }
+        }
+        if (next) {
+          Lit lit = next.value();
+          enqueue(lit);
+        } else {
+          return Status::Sat;
+        }
       }
     }
+    return Status::Unknown;
   }
 
 private:
