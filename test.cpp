@@ -86,10 +86,33 @@ void test_propagate() {
     assert(clause[1] == Lit(1, false));
   }
   {
-      // No Conflict
-
-  } {
     // Unit Propagation
+    // x0 & x1 & (!x0 v !x1 v !x2)
+    // x2=false
+    Solver solver = Solver(10);
+    {
+      // x0
+      Clause clause = Clause();
+      clause.push_back(Lit(0, true));
+      solver.add_clause(clause);
+    }
+    {
+      // x1
+      Clause clause = Clause();
+      clause.push_back(Lit(1, true));
+      solver.add_clause(clause);
+    }
+    {
+      // (!x0 v !x1)
+      Clause clause = Clause();
+      clause.push_back(Lit(0, false));
+      clause.push_back(Lit(1, false));
+      clause.push_back(Lit(2, false));
+      solver.add_clause(clause);
+    }
+    auto confl = solver.propagate();
+    assert(!confl.has_value());
+    assert(solver.eval(Lit(2, false)) == LitBool::True);
   }
 }
 int main() {
