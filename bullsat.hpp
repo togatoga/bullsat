@@ -206,6 +206,7 @@ public:
         if (next) {
           Lit lit = next.value();
           enqueue(lit);
+          levels[lit.vidx()].value() += 1;
         } else {
           return Status::Sat;
         }
