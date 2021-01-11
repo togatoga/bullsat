@@ -1,9 +1,10 @@
 #ifndef BULLSAT_HPP
 #define BULLSAT_HPP
+#include <algorithm>
 #include <cassert>
+#include <deque>
 #include <iostream>
 #include <optional>
-#include <unordered_map>
 #include <vector>
 
 namespace bullsat {
@@ -58,7 +59,7 @@ public:
     watchers.resize(2 * variable_num);
     reasons.resize(variable_num);
     levels.resize(variable_num);
-    que.resize(variable_num);
+    que.clear();
   }
   std::vector<bool> assings;
   std::optional<Status> status;
@@ -74,16 +75,114 @@ public:
   void enqueue(Lit lit, std::optional<ClauseIdx> reason = std::nullopt) {
 
     assert(!levels[lit.vidx()].has_value());
-    levels[lit.vidx()] = [&]() {
-      if (que.empty()) {
-        return 0;
-      }
-      Lit last = que.back();
-      return levels[last.vidx()].value_or(0);
-    }();
+    levels[lit.vidx()] = decision_level();
     assings[lit.vidx()] = lit.pos() ? true : false;
     reasons[lit.vidx()] = reason;
     que.push_back(lit);
+  }
+
+  void new_var() {
+    // literal index
+    watchers.push_back(std::vector<ClauseIdx>());
+    watchers.push_back(std::vector<ClauseIdx>());
+    // variable index
+    assings.push_back(false);
+    reasons.push_back(std::nullopt);
+    levels.push_back(std::nullopt);
+  }
+
+  void add_clause(const Clause &clause) {
+    // grow the size
+    std::for_each(clause.begin(), clause.end(), [&](Lit lit) {
+      if (lit.vidx() >= assings.size()) {
+        new_var();
+      }
+    });
+
+    if (clause.size() == 1) {
+      // Unit Clause
+      enqueue(clause[0]);
+    } else {
+      ClauseIdx idx = clauses.size();
+      watchers[(~clause[0]).lidx()].push_back(idx);
+      watchers[(~clause[1]).lidx()].push_back(idx);
+      clauses.emplace_back(clause);
+    }
+  }
+  std::optional<ClauseIdx> propagate() {
+    while (que_head < que.size()) {
+      const Lit lit = que[que_head++];
+      const Lit nlit = ~lit;
+      std::vector<ClauseIdx> &watcher = watchers[lit.lidx()];
+      for (size_t i = 0; i < watcher.size(); i++) {
+        const ClauseIdx cidx = watcher[i];
+        Clause &clause = clauses[cidx];
+        assert(clause[0] == nlit || clause[1] == nlit);
+        // make sure that the clause[1] it false.
+        if (clause[0] == nlit) {
+          std::swap(clause[0], clause[1]);
+        }
+        assert(clause[1] == nlit && eval(clause[1]) == LitBool::False);
+
+        Lit first = clause[0];
+        // Already satisfied
+        if (eval(first) == LitBool::True) {
+          goto nextclause;
+        }
+        // clause[0] is False or Undefine
+        // clause[1] is False
+        // clause[2..] is False or True or Undefine.
+
+        for (size_t k = 2; k < clause.size(); k++) {
+          // Found a new lit to watch
+          if (eval(clause[k]) != LitBool::False) {
+            std::swap(clause[1], clause[k]);
+            watcher[i] = watcher.back();
+            watcher.pop_back();
+            watchers[(~clause[1]).lidx()].push_back(cidx);
+            i -= 1;
+            goto nextclause;
+          }
+        }
+
+        // clause[2..] is False
+
+        if (eval(first) == LitBool::False) {
+          // All literals are false
+          // Conflict
+          que_head = que.size();
+          return cidx;
+        } else {
+          // All literals excepting first are false
+          // Unit Propagation
+          assert(eval(first) == LitBool::Undefine);
+          enqueue(first, std::make_optional(cidx));
+        }
+      nextclause:;
+      }
+    }
+
+    return std::nullopt;
+  }
+  int decision_level() {
+    if (que.empty()) {
+      return 0;
+    }
+    Lit l = que.back();
+    return levels[l.vidx()].value_or(0);
+  }
+
+  void analyze(ClauseIdx cidx) {}
+  Status solve() {
+    while (true) {
+      std::optional<ClauseIdx> conflict = propagate();
+      if (conflict) {
+        ClauseIdx cidx = conflict.value();
+        analyze(cidx);
+      } else {
+        // No Conflict
+      }
+    }
   }
 
 private:
@@ -91,8 +190,8 @@ private:
   std::vector<std::vector<ClauseIdx>> watchers;
   std::vector<std::optional<ClauseIdx>> reasons;
   std::vector<std::optional<int>> levels;
-  std::vector<Lit> que;
-  int que_head;
+  std::deque<Lit> que;
+  size_t que_head;
 };
 } // namespace bullsat
 
