@@ -53,8 +53,48 @@ void test_enqueue_and_eval() {
     assert(solver.eval(x1) == LitBool::Undefine);
   }
 }
+
+void test_propagate() {
+  test_start(__func__);
+  {
+    // Conflict
+    // x0 & x1 & (!x0 v !x1)
+    Solver solver = Solver(10);
+    {
+      // x0
+      Clause clause = Clause();
+      clause.push_back(Lit(0, true));
+      solver.add_clause(clause);
+    }
+    {
+      // x1
+      Clause clause = Clause();
+      clause.push_back(Lit(1, true));
+      solver.add_clause(clause);
+    }
+    {
+      // (!x0 v !x1)
+      Clause clause = Clause();
+      clause.push_back(Lit(0, false));
+      clause.push_back(Lit(1, false));
+      solver.add_clause(clause);
+    }
+    auto confl = solver.propagate();
+    auto clause = *confl->get();
+    std::sort(clause.begin(), clause.end());
+    assert(clause[0] == Lit(0, false));
+    assert(clause[1] == Lit(1, false));
+  }
+  {
+      // No Conflict
+
+  } {
+    // Unit Propagation
+  }
+}
 int main() {
   cerr << "===================== test ===================== " << endl;
   test_lit();
   test_enqueue_and_eval();
+  test_propagate();
 }

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <deque>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -14,8 +15,8 @@ enum class Status { Sat, Unsat, Unknown };
 enum class LitBool { True, False, Undefine };
 using Var = int;
 struct Lit;
-using ClauseIdx = size_t;
 using Clause = std::vector<Lit>;
+using CRef = std::shared_ptr<Clause>;
 
 // x is
 // even: positive x0 (0 -> x0, 2 -> x1)
@@ -47,8 +48,15 @@ inline Lit operator~(Lit p) {
   q.x ^= 1;
   return q;
 }
+
 std::ostream &operator<<(std::ostream &os, const Lit &lit) {
   os << (lit.neg() ? "!x" : "x") << lit.var();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Clause &clause) {
+  std::for_each(clause.begin(), clause.end(),
+                [&](Lit lit) { os << lit << " "; });
   return os;
 }
 
@@ -72,7 +80,7 @@ public:
     }
     return assings[lit.vidx()] ? LitBool::True : LitBool::False;
   }
-  void enqueue(Lit lit, std::optional<ClauseIdx> reason = std::nullopt) {
+  void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
 
     assert(!levels[lit.vidx()].has_value());
     levels[lit.vidx()] = decision_level();
@@ -83,8 +91,8 @@ public:
 
   void new_var() {
     // literal index
-    watchers.push_back(std::vector<ClauseIdx>());
-    watchers.push_back(std::vector<ClauseIdx>());
+    watchers.push_back(std::vector<CRef>());
+    watchers.push_back(std::vector<CRef>());
     // variable index
     assings.push_back(false);
     reasons.push_back(std::nullopt);
@@ -103,20 +111,22 @@ public:
       // Unit Clause
       enqueue(clause[0]);
     } else {
-      ClauseIdx idx = clauses.size();
-      watchers[(~clause[0]).lidx()].push_back(idx);
-      watchers[(~clause[1]).lidx()].push_back(idx);
-      clauses.emplace_back(clause);
+      CRef cr = std::make_shared<Clause>(clause);
+      watchers[(~clause[0]).lidx()].push_back(cr);
+      watchers[(~clause[1]).lidx()].push_back(cr);
+      clauses.emplace_back(cr);
     }
   }
-  std::optional<ClauseIdx> propagate() {
+  std::optional<CRef> propagate() {
     while (que_head < que.size()) {
       const Lit lit = que[que_head++];
       const Lit nlit = ~lit;
-      std::vector<ClauseIdx> &watcher = watchers[lit.lidx()];
+
+      std::vector<CRef> &watcher = watchers[lit.lidx()];
       for (size_t i = 0; i < watcher.size(); i++) {
-        const ClauseIdx cidx = watcher[i];
-        Clause &clause = clauses[cidx];
+        CRef cr = watcher[i];
+        Clause &clause = *cr;
+
         assert(clause[0] == nlit || clause[1] == nlit);
         // make sure that the clause[1] it false.
         if (clause[0] == nlit) {
@@ -141,7 +151,7 @@ public:
             watcher[i] = watcher.back();
             watcher.pop_back();
             // New watch
-            watchers[(~clause[1]).lidx()].push_back(cidx);
+            watchers[(~clause[1]).lidx()].push_back(cr);
             i -= 1;
             goto nextclause;
           }
@@ -153,12 +163,12 @@ public:
           // All literals are false
           // Conflict
           que_head = que.size();
-          return cidx;
+          return std::move(cr);
         } else {
           // All literals excepting first are false
           // Unit Propagation
           assert(eval(first) == LitBool::Undefine);
-          enqueue(first, cidx);
+          enqueue(first, cr);
         }
       nextclause:;
       }
@@ -174,17 +184,15 @@ public:
     return levels[l.vidx()].value_or(0);
   }
 
-  void analyze(ClauseIdx cidx) {}
+  void analyze(CRef conflict) {}
   Status solve() {
 
     while (true) {
-      std::optional<ClauseIdx> conflict = propagate();
-      if (conflict) {
+      if (std::optional<CRef> conflict = propagate()) {
         if (decision_level() == 0) {
           return Status::Unsat;
         }
-        ClauseIdx cidx = conflict.value();
-        analyze(cidx);
+        analyze(conflict.value());
       } else {
         // No Conflict
         std::optional<Lit> next = std::nullopt;
@@ -207,9 +215,9 @@ public:
   }
 
 private:
-  std::vector<Clause> clauses;
-  std::vector<std::vector<ClauseIdx>> watchers;
-  std::vector<std::optional<ClauseIdx>> reasons;
+  std::vector<CRef> clauses, learnts;
+  std::vector<std::vector<CRef>> watchers;
+  std::vector<std::optional<CRef>> reasons;
   std::vector<std::optional<int>> levels;
   std::deque<Lit> que;
   size_t que_head;
