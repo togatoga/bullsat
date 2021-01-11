@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+test
+*.txt
+minisat
+build
+site
