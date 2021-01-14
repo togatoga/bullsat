@@ -1,5 +1,5 @@
-#ifndef BULLSAT_HPP
-#define BULLSAT_HPP
+#ifndef BULLSAT_HPP_
+#define BULLSAT_HPP_
 #include <algorithm>
 #include <cassert>
 #include <deque>
@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace bullsat {
@@ -63,7 +64,7 @@ std::ostream &operator<<(std::ostream &os, const Clause &clause) {
 
 class Solver {
 public:
-  Solver(size_t variable_num) : que_head(0) {
+  explicit Solver(size_t variable_num) : que_head(0) {
     assings.resize(variable_num);
     watchers.resize(2 * variable_num);
     reasons.resize(variable_num);
@@ -93,7 +94,6 @@ public:
   }
 
   void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
-
     assert(!levels[lit.vidx()].has_value());
     levels[lit.vidx()] = decision_level();
     assings[lit.vidx()] = lit.pos() ? true : false;
@@ -196,7 +196,7 @@ public:
             goto nextclause;
           }
         }
-        
+
         // clause[2..] is False
         if (eval(first) == LitBool::False) {
           // All literals are false
@@ -339,4 +339,4 @@ private:
 };
 } // namespace bullsat
 
-#endif
+#endif // BULLSAT_HPP_
