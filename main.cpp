@@ -30,11 +30,11 @@ void write_result(const Solver &solver, Status status, std::ostream &os,
   assigns += "0";
   if (tostdout) {
     os << "s " << result << std::endl;
-    os << "s " << assigns << std::endl;
+
   } else {
     os << result << std::endl;
-    os << assigns << std::endl;
   }
+  os << assigns << std::endl;
 }
 int main(int argc, char *argv[]) {
   if (!(argc == 2 || argc == 3)) {
