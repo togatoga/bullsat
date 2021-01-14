@@ -17,7 +17,7 @@ for file in `find cnf/benchmark/*/*.cnf -type f`; do
     
     echo "Solving.... ${file}"
     start_ms=`date +%s%3N`
-    timeout ${TIMELIMIT}s ${SOLVER} $file $result
+    timeout ${TIMELIMIT}s ${SOLVER} $file $result > /dev/null 2>&1
     end_ms=`date +%s%3N`
     status=`head -n 1 $result`
     if [ ${status} = "SAT" ]; then
