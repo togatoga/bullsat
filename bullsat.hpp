@@ -70,8 +70,7 @@ public:
     levels.resize(variable_num);
     que.clear();
   }
-
-  LitBool eval(Lit lit) {
+  [[nodiscard]] LitBool eval(Lit lit) {
     if (!levels[lit.vidx()].has_value()) {
       return LitBool::Undefine;
     }
@@ -80,10 +79,17 @@ public:
     }
     return assings[lit.vidx()] ? LitBool::True : LitBool::False;
   }
+  [[nodiscard]] int decision_level() {
+    if (que.empty()) {
+      return 0;
+    }
 
+    Lit l = que.back();
+    return levels[l.vidx()].value_or(0);
+  }
   void new_decision(Lit lit, std::optional<CRef> reason = std::nullopt) {
     enqueue(lit, reason);
-    levels[lit.vidx()].value() += 1;
+    levels[lit.vidx()].value()++;
   }
 
   void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
@@ -150,14 +156,15 @@ public:
       attach_clause(cr);
     }
   }
-  std::optional<CRef> propagate() {
+  [[nodiscard]] std::optional<CRef> propagate() {
     while (que_head < que.size()) {
       const Lit lit = que[que_head++];
       const Lit nlit = ~lit;
 
       std::vector<CRef> &watcher = watchers[lit.lidx()];
-      for (size_t i = 0; i < watcher.size(); i++) {
+      for (size_t i = 0; i < watcher.size();) {
         CRef cr = watcher[i];
+        const size_t next_idx = i + 1;
         Clause &clause = *cr;
 
         assert(clause[0] == nlit || clause[1] == nlit);
@@ -170,6 +177,7 @@ public:
         Lit first = clause[0];
         // Already satisfied
         if (eval(first) == LitBool::True) {
+          i = next_idx;
           goto nextclause;
         }
         // clause[0] is False or Undefine
@@ -185,13 +193,11 @@ public:
             watcher.pop_back();
             // New watch
             watchers[(~clause[1]).lidx()].push_back(cr);
-            i -= 1;
             goto nextclause;
           }
         }
-
+        
         // clause[2..] is False
-
         if (eval(first) == LitBool::False) {
           // All literals are false
           // Conflict
@@ -202,6 +208,7 @@ public:
           // Unit Propagation
           assert(eval(first) == LitBool::Undefine);
           enqueue(first, cr);
+          i = next_idx;
         }
       nextclause:;
       }
@@ -209,15 +216,8 @@ public:
 
     return std::nullopt;
   }
-  int decision_level() {
-    if (que.empty()) {
-      return 0;
-    }
-    Lit l = que.back();
-    return levels[l.vidx()].value_or(0);
-  }
 
-  std::pair<Clause, int> analyze(CRef conflict) {
+  [[nodiscard]] std::pair<Clause, int> analyze(CRef conflict) {
     Clause learnt_clause;
 
     const int conflicted_decision_level = decision_level();
