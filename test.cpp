@@ -11,8 +11,8 @@ void test_start(const char *funcname) {
 
 void test_lit() {
   test_start(__func__);
-  Lit x0 = Lit(0, true);   // x0
-  Lit nx0 = Lit(0, false); // !x0
+  Lit x0 = Lit(0, true); // x0
+  Lit nx0 = ~x0;         // !x0
   assert(x0.lidx() == 0);
   assert(nx0.lidx() == 1);
 
@@ -31,7 +31,6 @@ void test_lit() {
   assert(x1.lidx() == 2);
   assert(x0 < x1);
   assert(!x1.neg());
-  cerr << x0 << " " << nx0 << " " << x1 << endl;
 }
 
 void test_enqueue_and_eval() {
@@ -172,10 +171,88 @@ void test_analyze() {
     assert(learnt_clause == l);
   }
 }
+
+void test_queue() {
+  test_start(__func__);
+  Solver solver = Solver(10);
+
+  // @1: x0 x1 x2
+  // @2: x3 x4
+  // @3: x5
+  assert(solver.decision_level() == 0);
+  solver.new_decision(Lit(0, true));
+  solver.enqueue(Lit(1, true));
+  solver.enqueue(Lit(2, true));
+  assert(solver.decision_level() == 1);
+  solver.new_decision(Lit(3, true));
+  solver.enqueue(Lit(4, true));
+  assert(solver.decision_level() == 2);
+  solver.new_decision(Lit(5, true));
+
+  // pop queue until the level 1.
+  // @1: x0 x1 x2
+  solver.pop_queue_until(1);
+  assert(solver.decision_level() == 1);
+  assert(solver.eval(Lit(0, true)) == LitBool::True);
+  assert(solver.eval(Lit(1, true)) == LitBool::True);
+  assert(solver.eval(Lit(2, true)) == LitBool::True);
+
+  assert(solver.eval(Lit(3, true)) == LitBool::Undefine);
+}
+
+bool validate_satisfiable(const vector<Clause> &clauses, const Solver &solver) {
+  for (const auto &clause : clauses) {
+    bool satisfied = false;
+    for (const auto &lit : clause) {
+      if (solver.eval(lit) == LitBool::True) {
+        satisfied = true;
+        break;
+      }
+    }
+    if (!satisfied) {
+      return false;
+    }
+  }
+  return true;
+}
+void test_solve() {
+  test_start(__func__);
+
+  {
+    // SATISFIABLE
+    //(x0 v !x4 v x3) and (!x0 v x4 v x2 v x3) and (x2 v x3)
+    Solver solver = Solver(5);
+    vector<Clause> clauses = {
+        Clause{Lit(0, true), Lit(4, false), Lit(3, true)},
+        Clause{Lit(0, false), Lit(4, true), Lit(2, true), Lit(3, true)},
+        Clause{Lit(2, true), Lit(3, true)}};
+    std::for_each(clauses.begin(), clauses.end(),
+                  [&](Clause &c) { solver.add_clause(c); });
+
+    assert(solver.solve() == Status::Sat);
+    assert(validate_satisfiable(clauses, solver));
+  }
+  {
+    // UNSATISFIABLE
+    // (x0) and (!x0 v !x2) and (!x0 v x1 v x2) and (x2 v !x1)
+    Solver solver = Solver(3);
+    vector<Clause> clauses = {Clause{Lit(0, true)},
+                              Clause{Lit(0, false), Lit(2, false)},
+                              Clause{Lit(0, false), Lit(1, true), Lit(2, true)},
+                              Clause{Lit(2, true), Lit(1, false)}};
+    std::for_each(clauses.begin(), clauses.end(),
+                  [&](Clause &c) { solver.add_clause(c); });
+
+    assert(solver.solve() == Status::Unsat);
+  }
+}
+
 int main() {
   cerr << "===================== test ===================== " << endl;
   test_lit();
   test_enqueue_and_eval();
   test_propagate();
+  test_queue();
   test_analyze();
+  test_solve();
 }

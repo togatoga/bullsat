@@ -71,7 +71,7 @@ public:
     levels.resize(variable_num);
     que.clear();
   }
-  [[nodiscard]] LitBool eval(Lit lit) {
+  [[nodiscard]] LitBool eval(Lit lit) const {
     if (!levels[lit.vidx()].has_value()) {
       return LitBool::Undefine;
     }
@@ -80,7 +80,7 @@ public:
     }
     return assings[lit.vidx()] ? LitBool::True : LitBool::False;
   }
-  [[nodiscard]] int decision_level() {
+  [[nodiscard]] int decision_level() const {
     if (que.empty()) {
       return 0;
     }
@@ -158,6 +158,7 @@ public:
   }
   [[nodiscard]] std::optional<CRef> propagate() {
     while (que_head < que.size()) {
+      assert(que_head >= 0);
       const Lit lit = que[que_head++];
       const Lit nlit = ~lit;
 
