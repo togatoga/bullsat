@@ -1,6 +1,8 @@
 #include "bullsat.hpp"
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 using namespace std;
 using namespace bullsat;
 
@@ -247,6 +249,30 @@ void test_solve() {
   }
 }
 
+void test_parse_cnf() {
+  test_start(__func__);
+
+  std::ifstream file("./cnf/sat.cnf");
+  // c
+  // c This is a sample input file.
+  // c
+  // p cnf 3 5
+  //  1 -2  3 0
+  // -1  2 0
+  // -2 -3 0
+  //  1  2 -3 0
+  //  1  3 0
+  CnfData data = parse_cnf(file);
+  assert(data.var_num.value() == 3);
+  assert(data.clause_num.value() == 5);
+  vector<Clause> clauses = {Clause{Lit(0, true), Lit(1, false), Lit(2, true)},
+                            Clause{Lit(0, false), Lit(1, true)},
+                            Clause{Lit(1, false), Lit(2, false)},
+                            Clause{Lit(0, true), Lit(1, true), Lit(2, false)},
+                            Clause{Lit(0, true), Lit(2, true)}};
+  assert(data.clauses == clauses);
+}
+
 int main() {
   cerr << "===================== test ===================== " << endl;
   test_lit();
@@ -255,4 +281,5 @@ int main() {
   test_queue();
   test_analyze();
   test_solve();
+  test_parse_cnf();
 }

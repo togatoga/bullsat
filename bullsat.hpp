@@ -5,7 +5,10 @@
 #include <deque>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <optional>
+#include <regex>
+#include <sstream>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -64,6 +67,7 @@ std::ostream &operator<<(std::ostream &os, const Clause &clause) {
 
 class Solver {
 public:
+  Solver() = default;
   explicit Solver(size_t variable_num) : que_head(0) {
     assings.resize(variable_num);
     watchers.resize(2 * variable_num);
@@ -338,6 +342,68 @@ private:
   std::deque<Lit> que;
   size_t que_head;
 };
+struct CnfData {
+  std::optional<size_t> var_num;
+  std::optional<size_t> clause_num;
+  std::vector<Clause> clauses;
+};
+CnfData parse_cnf(std::istream &in) {
+  std::string line;
+  const std::regex pattern("p cnf (\\d+) (\\d+)");
+  CnfData data = {};
+  while (std::getline(in, line)) {
+    std::stringstream stream(line);
+    std::string word;
+
+    std::vector<std::string> words;
+
+    while (std::getline(stream, word, ' ')) {
+      if (word.empty()) {
+        continue;
+      }
+      words.push_back(word);
+    }
+    if (words.empty() || words[0] == "c") {
+      continue;
+    }
+
+    line = std::accumulate(
+        std::next(words.begin()), words.end(), words[0],
+        [](std::string left, std::string right) { return left + " " + right; });
+    std::smatch matches;
+
+    // p cnf 123 567
+    if (std::regex_match(line, matches, pattern)) {
+      int var_num = std::stoi(matches[1]);
+      int clause_num = std::stoi(matches[2]);
+      if (var_num >= 0 && clause_num >= 0) {
+        data.var_num = var_num;
+        data.clause_num = clause_num;
+      }
+      continue;
+    }
+    // Parse a clause from line.
+    // 1 2 -3 0
+    Clause clause = Clause();
+    for (const auto &w : words) {
+      if (w == "0") {
+        break;
+      }
+      int num = std::stoi(w);
+      assert(num != 0);
+      int d = std::abs(num) - 1;
+      if (num > 0) {
+        clause.emplace_back(Lit(d, true));
+      } else {
+        clause.emplace_back(Lit(d, false));
+      }
+    }
+    if (!clause.empty()) {
+      data.clauses.emplace_back(clause);
+    }
+  }
+  return data;
+}
 } // namespace bullsat
 
 #endif // BULLSAT_HPP_
