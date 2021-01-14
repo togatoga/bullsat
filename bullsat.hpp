@@ -276,6 +276,7 @@ public:
     // learnt_clause[0] = !first_uip
     learnt_clause.push_back(~(first_uip.value()));
     std::swap(learnt_clause[0], learnt_clause.back());
+
     // Back Jump
     int back_jump_level = 0;
     for (size_t i = 1; i < learnt_clause.size(); i++) {
