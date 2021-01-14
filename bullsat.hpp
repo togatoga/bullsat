@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 namespace bullsat {
@@ -69,8 +70,7 @@ public:
     levels.resize(variable_num);
     que.clear();
   }
-  std::vector<bool> assings;
-  std::optional<Status> status;
+
   LitBool eval(Lit lit) {
     if (!levels[lit.vidx()].has_value()) {
       return LitBool::Undefine;
@@ -89,6 +89,26 @@ public:
     que.push_back(lit);
   }
 
+  void pop_queue_until(int until_level) {
+    assert(!que.empty());
+
+    while (!que.empty()) {
+      Lit lit = que.back();
+      if (levels[lit.vidx()] > until_level) {
+        reasons[lit.vidx()] = std::nullopt;
+        levels[lit.vidx()] = std::nullopt;
+        que.pop_back();
+      } else {
+        break;
+      }
+    }
+    if (que.size() > 0) {
+      que_head = que.size() - 1;
+    } else {
+      que_head = 0;
+    }
+  }
+
   void new_var() {
     // literal index
     watchers.push_back(std::vector<CRef>());
@@ -98,7 +118,16 @@ public:
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
   }
-
+  void attach_clause(const CRef &cr, bool learnt = false) {
+    const Clause &clause = *cr;
+    assert(clause.size() > 1);
+    watchers[(~clause[0]).lidx()].push_back(cr);
+    watchers[(~clause[1]).lidx()].push_back(cr);
+    clauses.push_back(cr);
+    if (learnt) {
+      learnts.push_back(cr);
+    }
+  }
   void add_clause(const Clause &clause) {
     // grow the size
     std::for_each(clause.begin(), clause.end(), [&](Lit lit) {
@@ -112,9 +141,7 @@ public:
       enqueue(clause[0]);
     } else {
       CRef cr = std::make_shared<Clause>(clause);
-      watchers[(~clause[0]).lidx()].push_back(cr);
-      watchers[(~clause[1]).lidx()].push_back(cr);
-      clauses.emplace_back(cr);
+      attach_clause(cr);
     }
   }
   std::optional<CRef> propagate() {
@@ -184,15 +211,92 @@ public:
     return levels[l.vidx()].value_or(0);
   }
 
-  void analyze(CRef conflict) {}
-  Status solve() {
+  std::pair<Clause, int> analyze(CRef conflict) {
+    Clause learnt_clause;
 
+    const int conflicted_decision_level = decision_level();
+    std::unordered_set<Var> checking_variables;
+    int counter = 0;
+    {
+      const Clause clause = *conflict;
+
+      // variables that are used to traverse by a conflicted clause
+      for (const Lit lit : clause) {
+        assert(eval(lit) == LitBool::False);
+        checking_variables.insert(lit.var());
+        if (levels[lit.vidx()] < conflicted_decision_level) {
+          learnt_clause.emplace_back(lit);
+        } else {
+          counter += 1;
+        }
+      }
+      assert(counter >= 1);
+    }
+
+    // traverse a implication graph to a 1-UIP(first-uinque-implication-point)
+    std::optional<Lit> first_uip = std::nullopt;
+    for (size_t i = que.size() - 1; true; i--) {
+      Lit lit = que[i];
+      // Skip a variable that isn't checked.
+      if (checking_variables.count(lit.var()) == 0) {
+        continue;
+      }
+      counter--;
+      if (counter <= 0) {
+        // 1-UIP
+        first_uip = lit;
+        break;
+      }
+      checking_variables.insert(lit.var());
+      assert(reasons[lit.vidx()].has_value());
+      CRef reason = reasons[lit.vidx()].value();
+      const Clause clause = *reason;
+      assert(clause[0] == lit);
+      for (size_t j = 1; j < clause.size(); j++) {
+        Lit clit = clause[j];
+        // Already checked
+        if (checking_variables.count(clit.var()) > 0) {
+          continue;
+        }
+        checking_variables.insert(clit.var());
+        if (levels[clit.vidx()] < conflicted_decision_level) {
+          learnt_clause.push_back(clit);
+        } else {
+          counter += 1;
+        }
+      }
+    }
+    assert(first_uip.has_value());
+    // learnt_clause[0] = !first_uip
+    learnt_clause.push_back(~(first_uip.value()));
+    std::swap(learnt_clause[0], learnt_clause.back());
+    // Back Jump
+    int back_jump_level = 0;
+    for (size_t i = 1; i < learnt_clause.size(); i++) {
+      assert(levels[learnt_clause[i].vidx()].has_value());
+      back_jump_level =
+          std::max(back_jump_level, levels[learnt_clause[i].vidx()].value());
+    }
+
+    return std::make_pair(learnt_clause, back_jump_level);
+  }
+
+  Status solve() {
     while (true) {
       if (std::optional<CRef> conflict = propagate()) {
         if (decision_level() == 0) {
           return Status::Unsat;
         }
-        analyze(conflict.value());
+        auto [learnt_clause, back_jump_level] = analyze(conflict.value());
+        pop_queue_until(back_jump_level);
+        if (learnt_clause.size() == 1) {
+          enqueue(learnt_clause[0]);
+        } else {
+          auto cr = std::make_shared<Clause>(learnt_clause);
+          attach_clause(cr, true);
+          enqueue(learnt_clause[0], cr);
+        }
+
       } else {
         // No Conflict
         std::optional<Lit> next = std::nullopt;
@@ -214,6 +318,10 @@ public:
     }
     return Status::Unknown;
   }
+  // All variables
+public:
+  std::vector<bool> assings;
+  std::optional<Status> status;
 
 private:
   std::vector<CRef> clauses, learnts;
