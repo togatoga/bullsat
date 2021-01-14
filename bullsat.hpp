@@ -80,6 +80,12 @@ public:
     }
     return assings[lit.vidx()] ? LitBool::True : LitBool::False;
   }
+
+  void new_decision(Lit lit, std::optional<CRef> reason = std::nullopt) {
+    enqueue(lit, reason);
+    levels[lit.vidx()].value() += 1;
+  }
+
   void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
 
     assert(!levels[lit.vidx()].has_value());
@@ -308,9 +314,7 @@ public:
           }
         }
         if (next) {
-          Lit lit = next.value();
-          enqueue(lit);
-          levels[lit.vidx()].value() += 1;
+          new_decision(next.value());
         } else {
           return Status::Sat;
         }

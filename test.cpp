@@ -103,7 +103,7 @@ void test_propagate() {
       solver.add_clause(clause);
     }
     {
-      // (!x0 v !x1)
+      // (!x0 v !x1 v x2)
       Clause clause = Clause();
       clause.push_back(Lit(0, false));
       clause.push_back(Lit(1, false));
@@ -115,9 +115,67 @@ void test_propagate() {
     assert(solver.eval(Lit(2, false)) == LitBool::True);
   }
 }
+
+void test_analyze() {
+  test_start(__func__);
+  {
+
+    Solver solver = Solver(7);
+    {
+      // (!x0 v x1)
+      Clause clause = Clause();
+      clause.push_back(Lit(0, false));
+      clause.push_back(Lit(1, true));
+      solver.add_clause(clause);
+    }
+    {
+      // (!x1 v x2)
+      Clause clause = Clause();
+      clause.push_back(Lit(1, false));
+      clause.push_back(Lit(2, true));
+      solver.add_clause(clause);
+    }
+    {
+      // (!x1 v x3)
+      Clause clause = Clause();
+      clause.push_back(Lit(1, false));
+      clause.push_back(Lit(3, true));
+      solver.add_clause(clause);
+    }
+
+    {
+      // (!x5 v !x2 v x4)
+      Clause clause = Clause();
+      clause.push_back(Lit(5, false));
+      clause.push_back(Lit(2, false));
+      clause.push_back(Lit(4, true));
+      solver.add_clause(clause);
+    }
+    {
+      // (!x6 v !x3 v !x4);
+      Clause clause = Clause();
+      clause.push_back(Lit(6, false));
+      clause.push_back(Lit(3, false));
+      clause.push_back(Lit(4, false));
+      solver.add_clause(clause);
+    }
+
+    solver.new_decision(Lit(5, true));
+    solver.new_decision(Lit(6, true));
+    solver.new_decision(Lit(0, true));
+    auto confl = solver.propagate();
+
+    auto [learnt_clause, level] = solver.analyze(confl.value());
+    assert(learnt_clause.size() == 3 && level == 2);
+    // (!x1 v !x5 v !x6)
+    Clause l = Clause{Lit(1, false), Lit(5, false), Lit(6, false)};
+    assert(learnt_clause == l);
+  }
+}
 int main() {
   cerr << "===================== test ===================== " << endl;
   test_lit();
   test_enqueue_and_eval();
   test_propagate();
+  test_analyze();
 }
