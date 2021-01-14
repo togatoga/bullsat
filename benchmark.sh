@@ -8,6 +8,8 @@ sat=0
 unsat=0
 unknown=0
 total_ms=0
+trap "exit" 2
+
 echo "Time Limit... ${TIMELIMIT} s"
 for file in `find cnf/benchmark/*/*.cnf -type f`; do
 
