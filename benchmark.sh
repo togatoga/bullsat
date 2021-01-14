@@ -27,7 +27,7 @@ for file in `find cnf/benchmark/*/*.cnf -type f`; do
     elif [ ${status} = "UNSAT" ]; then
         unsat=`expr $unsat + 1`
     else
-        unknown=`expr $unsat + 1`
+        unknown=`expr $unknown + 1`
     fi
     elasped_ms=`expr $end_ms - $start_ms`
     total_ms=`expr $total_ms + $elasped_ms`
