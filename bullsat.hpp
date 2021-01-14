@@ -291,6 +291,7 @@ public:
   Status solve() {
     while (true) {
       if (std::optional<CRef> conflict = propagate()) {
+        // Conflict
         if (decision_level() == 0) {
           return Status::Unsat;
         }
