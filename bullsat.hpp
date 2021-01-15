@@ -74,6 +74,7 @@ public:
     reasons.resize(variable_num);
     levels.resize(variable_num);
     que.clear();
+    // search parameters
   }
   [[nodiscard]] LitBool eval(Lit lit) const {
     if (!levels[lit.vidx()].has_value()) {
@@ -293,7 +294,57 @@ public:
     return std::make_pair(learnt_clause, back_jump_level);
   }
 
+  void remove_clauses(const std::unordered_set<CRef> &crs) {
+    // remove watchers
+    for (const CRef &cr : crs) {
+      const Clause& clause = *cr;
+      std::vector<CRef>& watcher1 = watchers[(~clause[0]).lidx()];
+      for (size_t i = 0; i < watcher1.size(); i++) {
+        if (watcher1[i] == cr) {
+          watcher1.erase(watcher1.begin() + i);
+          break;
+        }
+      }
+      std::vector<CRef>& watcher2 = watchers[(~clause[1]).lidx()];
+      for (size_t i = 0; i < watcher2.size(); i++) {
+        if (watcher2[i] == cr) {
+          watcher2.erase(watcher2.begin() + i);
+          break;
+        }
+      }
+    }
+
+    // remove clauses
+    size_t j = 0;
+    for (size_t i = 0; i < clauses.size(); i++) {
+      if (crs.count(clauses[i]) == 0) {
+        clauses[j] = clauses[i];
+        j++;
+      }
+    }
+    clauses.resize(j);
+  }
+
+  void reduce_learnts() {
+    std::sort(learnts.begin(), learnts.end(),
+              [](const auto &left, const auto &right) {
+                return left->size() < right->size();
+              });
+    size_t new_size = learnts.size() / 2;
+    std::unordered_set<CRef> crs;
+    for (size_t i = new_size; i < learnts.size(); i++) {
+      if (learnts[i]->size() > 2) {
+        crs.insert(std::move(learnts[i]));
+      } else {
+        learnts[new_size] = std::move(learnts[i]);
+        new_size++;
+      }
+    }
+    remove_clauses(crs);
+    learnts.resize(new_size);
+  }
   Status solve() {
+    double max_limit_learnts = clauses.size() * 0.3;
     while (true) {
       if (std::optional<CRef> conflict = propagate()) {
         // Conflict
@@ -312,6 +363,12 @@ public:
 
       } else {
         // No Conflict
+        if (learnts.size() >= max_limit_learnts) {
+          // Reduce the set of learnt clauses
+          max_limit_learnts *= 1.1;
+          reduce_learnts();
+        }
+
         std::optional<Lit> next = std::nullopt;
         for (size_t v = 0; v < assings.size(); v++) {
           if (!levels[v].has_value()) {
