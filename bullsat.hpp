@@ -8,6 +8,7 @@
 #include <numeric>
 #include <optional>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <unordered_set>
 #include <utility>
@@ -54,6 +55,94 @@ inline Lit operator~(Lit p) {
   return q;
 }
 
+struct Heap {
+  std::vector<Var> heap;
+  std::vector<std::optional<size_t>> indices;
+  std::vector<double> activity;
+  Heap() = default;
+  std::optional<Var> top() {
+    if (heap.empty()) {
+      return {};
+    }
+    return heap[0];
+  }
+  bool less(Var left, Var right) {
+    size_t l = static_cast<size_t>(left);
+    size_t r = static_cast<size_t>(right);
+    return activity[l] > activity[r];
+  }
+  void heap_up(size_t i) {
+    if (i == 0) {
+      return;
+    }
+    Var x = heap[i];
+    size_t p = (i - 1) >> 1;
+    while (i != 0 && less(x, heap[p])) {
+      heap[i] = heap[p];
+      indices[heap[p]] = i;
+      i = p;
+      p = (i - 1) >> 1;
+    }
+    heap[i] = x;
+    indices[x] = i;
+  }
+  void heap_down(size_t i) {
+    Var x = heap[i];
+    while (2 * i < heap.size()) {
+      size_t left = 2 * i + 1;
+      size_t right = 2 * i + 2;
+      size_t child =
+          right < heap.size() && less(heap[right], heap[left]) ? right : left;
+      if (!less(heap[child], x)) {
+        break;
+      }
+      heap[i] = heap[child];
+      indices[heap[child]] = i;
+      i = child;
+    }
+    heap[i] = x;
+    indices[x] = i;
+  }
+  std::optional<Var> pop() {
+    if (heap.empty()) {
+      return {};
+    }
+    Var x = heap[0];
+    heap[0] = heap.back();
+    indices[heap[0]] = 0;
+    indices[x] = std::nullopt;
+    heap.pop_back();
+    if (heap.size() > 1) {
+      heap_down(0);
+    }
+    return heap[0];
+  }
+  void push(Var v) {
+    indices.resize(v + 1);
+    activity.resize(v + 1);
+    indices[v] = heap.size();
+    heap.push_back(v);
+  }
+  size_t size() const { return heap.size(); }
+  bool empty() const { return heap.empty(); }
+  bool in_heap(Var x) { return x < indices.size() && indices[x].has_value(); }
+  void increase(Var n) {
+    assert(in_heap(n));
+    heap_up(indices[n].value());
+  }
+  void decrease(Var n) {
+    assert(in_heap(n));
+    heap_down(indices[n].value());
+  }
+  void update(Var n) {
+    if (!in_heap(n)) {
+      push(n);
+    } else {
+      heap_up(indices[n].value());
+      heap_down(indices[n].value());
+    }
+  }
+};
 std::ostream &operator<<(std::ostream &os, const Lit &lit) {
   os << (lit.neg() ? "!x" : "x") << lit.var();
   return os;
@@ -76,8 +165,8 @@ public:
     que.clear();
     for (size_t v = 0; v < variable_num; v++) {
       unselected_vars.insert(Var(v));
+      order_heap.push(Var(v));
     }
-    // search parameters
   }
   [[nodiscard]] LitBool eval(Lit lit) const {
     if (!levels[lit.vidx()].has_value()) {
@@ -141,6 +230,7 @@ public:
     assings.push_back(false);
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
+    order_heap.push(v);
   }
   void unwatch_clause(const CRef &cr) {
     const Clause &clause = *cr;
@@ -260,7 +350,6 @@ public:
         if (eval(first) == LitBool::False) {
           // All literals are false
           // Conflict
-          que_head = que.size();
           return std::move(cr);
         } else {
           // All literals excepting first are false
@@ -464,6 +553,7 @@ private:
   std::deque<Lit> que;
   size_t que_head;
   std::unordered_set<Var> unselected_vars;
+  Heap order_heap;
 };
 struct CnfData {
   std::optional<size_t> var_num;
