@@ -69,7 +69,7 @@ struct Heap {
   bool less(Var left, Var right) {
     size_t l = static_cast<size_t>(left);
     size_t r = static_cast<size_t>(right);
-    return activity[l] > activity[r];
+    return activity[l] < activity[r];
   }
   void heap_up(size_t i) {
     if (i == 0) {
@@ -77,7 +77,11 @@ struct Heap {
     }
     Var x = heap[i];
     size_t p = (i - 1) >> 1;
-    while (i != 0 && less(x, heap[p])) {
+    std::cerr << "i " << i << " " << p << " " << activity[heap[p]] << " "
+              << activity[heap[i]] << " " << less(heap[p], heap[i])
+              << std::endl;
+    while (i != 0 && less(heap[p], heap[i])) {
+
       heap[i] = heap[p];
       indices[heap[p]] = i;
       i = p;
@@ -88,40 +92,61 @@ struct Heap {
   }
   void heap_down(size_t i) {
     Var x = heap[i];
-    while (2 * i < heap.size()) {
+    while (2 * i + 1 < heap.size()) {
       size_t left = 2 * i + 1;
       size_t right = 2 * i + 2;
       size_t child =
-          right < heap.size() && less(heap[right], heap[left]) ? right : left;
-      if (!less(heap[child], x)) {
+          right < heap.size() && less(heap[left], heap[right]) ? right : left;
+      if (right < heap.size()) {
+        std::cout << left << " " << right << " " << child << std::endl;
+        std::cout << activity[heap[left]] << " " << activity[heap[right]] << " "
+                  << activity[heap[child]] << std::endl;
+      }
+      // std::cerr << less(x, heap[child]) << std::endl;
+      if (less(x, heap[child])) {
+        heap[i] = heap[child];
+        indices[heap[i]] = i;
+        i = child;
+      } else {
         break;
       }
-      heap[i] = heap[child];
-      indices[heap[child]] = i;
-      i = child;
     }
     heap[i] = x;
     indices[x] = i;
   }
   std::optional<Var> pop() {
+
     if (heap.empty()) {
       return {};
     }
+    for (const auto v : heap) {
+      std::cerr << v << std::endl;
+    }
+    std::cerr << std::endl;
     Var x = heap[0];
+    indices[x] = std::nullopt;
     heap[0] = heap.back();
     indices[heap[0]] = 0;
-    indices[x] = std::nullopt;
+
     heap.pop_back();
     if (heap.size() > 1) {
       heap_down(0);
     }
-    return heap[0];
+
+    assert(!in_heap(x));
+    return x;
   }
   void push(Var v) {
+    if (in_heap(v)) {
+      return;
+    }
+
     indices.resize(v + 1);
     activity.resize(v + 1);
+    assert(!in_heap(v));
     indices[v] = heap.size();
     heap.push_back(v);
+    heap_up(indices[v].value());
   }
   size_t size() const { return heap.size(); }
   bool empty() const { return heap.empty(); }
@@ -157,7 +182,7 @@ std::ostream &operator<<(std::ostream &os, const Clause &clause) {
 class Solver {
 public:
   Solver() = default;
-  explicit Solver(size_t variable_num) : que_head(0) {
+  explicit Solver(size_t variable_num) : que_head(0), var_bump_inc(1.0) {
     assings.resize(variable_num);
     watchers.resize(2 * variable_num);
     reasons.resize(variable_num);
@@ -206,6 +231,9 @@ public:
       Lit lit = que.back();
       if (levels[lit.vidx()] > until_level) {
         unselected_vars.insert(lit.var());
+        if (!order_heap.in_heap(lit.var())) {
+          order_heap.push(lit.var());
+        }
         reasons[lit.vidx()] = std::nullopt;
         levels[lit.vidx()] = std::nullopt;
         que.pop_back();
@@ -219,7 +247,22 @@ public:
       que_head = 0;
     }
   }
-
+  void var_bump_activity(Var v, double inc) {
+    if (!order_heap.in_heap(v)) {
+      order_heap.push(v);
+    }
+    order_heap.activity[v] += inc;
+    if (order_heap.activity[v] > 1e100) {
+      // rescale
+      for (size_t i = 0; i < assings.size(); i++) {
+        order_heap.activity[i] *= 1e-100;
+      }
+      var_bump_inc *= 1e-100;
+    }
+    if (order_heap.in_heap(v)) {
+      order_heap.decrease(v);
+    }
+  }
   void new_var() {
     // literal index
     Var v = Var(assings.size());
@@ -378,6 +421,7 @@ public:
       for (const Lit &lit : clause) {
         assert(eval(lit) == LitBool::False);
         checking_variables.insert(lit.var());
+        var_bump_activity(lit.var(), var_bump_inc);
         if (levels[lit.vidx()] < conflicted_decision_level) {
           learnt_clause.emplace_back(lit);
         } else {
@@ -413,6 +457,7 @@ public:
           continue;
         }
         checking_variables.insert(clit.var());
+        var_bump_activity(lit.var(), var_bump_inc);
         if (levels[clit.vidx()] < conflicted_decision_level) {
           learnt_clause.push_back(clit);
         } else {
@@ -511,6 +556,7 @@ public:
           enqueue(learnt_clause[0], cr);
         }
 
+        var_bump_inc *= (1.0 / 0.95);
       } else {
         if (conflict_cnt >= restart_limit) {
           restart_limit *= 1.1;
@@ -526,14 +572,21 @@ public:
           max_limit_learnts *= 1.1;
           reduce_learnts();
         }
-
-        if (!unselected_vars.empty()) {
-          Var v = *unselected_vars.begin();
-          Lit next = Lit(v, assings[static_cast<size_t>(v)]);
-          new_decision(next);
-        } else {
-          status = Status::Sat;
-          return Status::Sat;
+        while (true) {
+          // std::cout << std::endl;
+          if (std::optional<Var> v = order_heap.pop()) {
+            if (levels[v.value()].has_value()) {
+              continue;
+            }
+            // std::cout << v.value() << " " << order_heap.activity[v.value()]
+            //           << std::endl;
+            Lit next = Lit(v.value(), assings[static_cast<size_t>(v.value())]);
+            new_decision(next);
+            break;
+          } else {
+            status = Status::Sat;
+            return Status::Sat;
+          }
         }
       }
     }
@@ -554,6 +607,7 @@ private:
   size_t que_head;
   std::unordered_set<Var> unselected_vars;
   Heap order_heap;
+  double var_bump_inc;
 };
 struct CnfData {
   std::optional<size_t> var_num;

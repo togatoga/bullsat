@@ -273,8 +273,23 @@ void test_parse_cnf() {
   assert(data.clauses == clauses);
 }
 
+void test_heap() {
+  test_start(__func__);
+  Heap order_heap = Heap();
+  for (size_t i = 0; i < 4; i++) {
+    order_heap.push(i);
+    order_heap.activity[i] += 100 * i;
+    order_heap.update(i);
+  }
+
+  while (auto p = order_heap.pop()) {
+    cout << p.value() << " " << order_heap.activity[p.value()] << std::endl;
+  }
+}
+
 int main() {
   cerr << "===================== test ===================== " << endl;
+  test_heap();
   test_lit();
   test_enqueue_and_eval();
   test_propagate();
