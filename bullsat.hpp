@@ -142,14 +142,37 @@ public:
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
   }
-  void attach_clause(const CRef &cr, bool learnt = false) {
+  void unwatch_clause(const CRef &cr) {
+    const Clause &clause = *cr;
+    assert(clause.size() > 1);
+    for (const auto idx : {0, 1}) {
+      auto &watcher = watchers[(~clause[static_cast<size_t>(idx)]).lidx()];
+      for (size_t i = 0; i < watcher.size(); i++) {
+        if (watcher[i] == cr) {
+          watcher[i] = watcher.back();
+          watcher.pop_back();
+          return;
+        }
+      }
+    }
+    // not found
+    assert(false);
+    return;
+  }
+  void watch_clause(const CRef &cr) {
     const Clause &clause = *cr;
     assert(clause.size() > 1);
     watchers[(~clause[0]).lidx()].push_back(cr);
     watchers[(~clause[1]).lidx()].push_back(cr);
-    clauses.push_back(cr);
+  }
+  void attach_clause(const CRef &cr, bool learnt = false) {
+
+    assert((*cr).size() > 1);
+    watch_clause(cr);
     if (learnt) {
       learnts.push_back(cr);
+    } else {
+      clauses.push_back(cr);
     }
   }
   void add_clause(const Clause &clause) {
@@ -237,10 +260,10 @@ public:
     std::unordered_set<Var> checking_variables;
     int counter = 0;
     {
-      const Clause clause = *conflict;
+      const Clause &clause = *conflict;
 
       // variables that are used to traverse by a conflicted clause
-      for (const Lit lit : clause) {
+      for (const Lit &lit : clause) {
         assert(eval(lit) == LitBool::False);
         checking_variables.insert(lit.var());
         if (levels[lit.vidx()] < conflicted_decision_level) {
@@ -301,37 +324,6 @@ public:
     return std::make_pair(learnt_clause, back_jump_level);
   }
 
-  void remove_clauses(const std::unordered_set<CRef> &crs) {
-    // remove watchers
-    for (const CRef &cr : crs) {
-      const Clause &clause = *cr;
-      std::vector<CRef> &watcher1 = watchers[(~clause[0]).lidx()];
-      for (size_t i = 0; i < watcher1.size(); i++) {
-        if (watcher1[i] == cr) {
-          watcher1.erase(watcher1.begin() + i);
-          break;
-        }
-      }
-      std::vector<CRef> &watcher2 = watchers[(~clause[1]).lidx()];
-      for (size_t i = 0; i < watcher2.size(); i++) {
-        if (watcher2[i] == cr) {
-          watcher2.erase(watcher2.begin() + i);
-          break;
-        }
-      }
-    }
-
-    // remove clauses
-    size_t j = 0;
-    for (size_t i = 0; i < clauses.size(); i++) {
-      if (crs.count(clauses[i]) == 0) {
-        clauses[j] = clauses[i];
-        j++;
-      }
-    }
-    clauses.resize(j);
-  }
-
   void reduce_learnts() {
     std::sort(learnts.begin(), learnts.end(),
               [](const auto &left, const auto &right) {
@@ -341,13 +333,13 @@ public:
     std::unordered_set<CRef> crs;
     for (size_t i = new_size; i < learnts.size(); i++) {
       if (learnts[i]->size() > 2) {
+        unwatch_clause(learnts[i]);
         crs.insert(std::move(learnts[i]));
       } else {
         learnts[new_size] = std::move(learnts[i]);
         new_size++;
       }
     }
-    remove_clauses(crs);
     learnts.resize(new_size);
   }
 
