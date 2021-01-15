@@ -74,6 +74,9 @@ public:
     reasons.resize(variable_num);
     levels.resize(variable_num);
     que.clear();
+    for (size_t v = 0; v < variable_num; v++) {
+      unselected_vars.insert(Var(v));
+    }
     // search parameters
   }
   [[nodiscard]] LitBool eval(Lit lit) const {
@@ -100,6 +103,7 @@ public:
 
   void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
     assert(!levels[lit.vidx()].has_value());
+    unselected_vars.erase(lit.var());
     levels[lit.vidx()] = decision_level();
     assings[lit.vidx()] = lit.pos() ? true : false;
     reasons[lit.vidx()] = reason;
@@ -112,6 +116,7 @@ public:
     while (!que.empty()) {
       Lit lit = que.back();
       if (levels[lit.vidx()] > until_level) {
+        unselected_vars.insert(lit.var());
         reasons[lit.vidx()] = std::nullopt;
         levels[lit.vidx()] = std::nullopt;
         que.pop_back();
@@ -128,12 +133,15 @@ public:
 
   void new_var() {
     // literal index
+    Var v = Var(assings.size());
     watchers.push_back(std::vector<CRef>());
     watchers.push_back(std::vector<CRef>());
     // variable index
+    unselected_vars.insert(v);
     assings.push_back(false);
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
+    
   }
   void attach_clause(const CRef &cr, bool learnt = false) {
     const Clause &clause = *cr;
@@ -369,16 +377,10 @@ public:
           reduce_learnts();
         }
 
-        std::optional<Lit> next = std::nullopt;
-        for (size_t v = 0; v < assings.size(); v++) {
-          if (!levels[v].has_value()) {
-            // undefine
-            next = Lit(static_cast<Var>(v), assings[v]);
-            break;
-          }
-        }
-        if (next) {
-          new_decision(next.value());
+        if (!unselected_vars.empty()) {
+          Var v = *unselected_vars.begin();
+          Lit next = Lit(v, assings[v]);
+          new_decision(next);
         } else {
           return Status::Sat;
         }
@@ -398,6 +400,7 @@ private:
   std::vector<std::optional<int>> levels;
   std::deque<Lit> que;
   size_t que_head;
+  std::unordered_set<Var> unselected_vars;
 };
 struct CnfData {
   std::optional<size_t> var_num;
