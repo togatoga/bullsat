@@ -141,7 +141,6 @@ public:
     assings.push_back(false);
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
-    
   }
   void attach_clause(const CRef &cr, bool learnt = false) {
     const Clause &clause = *cr;
@@ -305,15 +304,15 @@ public:
   void remove_clauses(const std::unordered_set<CRef> &crs) {
     // remove watchers
     for (const CRef &cr : crs) {
-      const Clause& clause = *cr;
-      std::vector<CRef>& watcher1 = watchers[(~clause[0]).lidx()];
+      const Clause &clause = *cr;
+      std::vector<CRef> &watcher1 = watchers[(~clause[0]).lidx()];
       for (size_t i = 0; i < watcher1.size(); i++) {
         if (watcher1[i] == cr) {
           watcher1.erase(watcher1.begin() + i);
           break;
         }
       }
-      std::vector<CRef>& watcher2 = watchers[(~clause[1]).lidx()];
+      std::vector<CRef> &watcher2 = watchers[(~clause[1]).lidx()];
       for (size_t i = 0; i < watcher2.size(); i++) {
         if (watcher2[i] == cr) {
           watcher2.erase(watcher2.begin() + i);
@@ -351,11 +350,15 @@ public:
     remove_clauses(crs);
     learnts.resize(new_size);
   }
+
   Status solve() {
     double max_limit_learnts = clauses.size() * 0.3;
+    size_t conflict_cnt = 0;
+    double restart_limit = 100;
     while (true) {
       if (std::optional<CRef> conflict = propagate()) {
         // Conflict
+        conflict_cnt++;
         if (decision_level() == 0) {
           return Status::Unsat;
         }
@@ -364,12 +367,17 @@ public:
         if (learnt_clause.size() == 1) {
           enqueue(learnt_clause[0]);
         } else {
-          auto cr = std::make_shared<Clause>(learnt_clause);
+          CRef cr = std::make_shared<Clause>(learnt_clause);
           attach_clause(cr, true);
           enqueue(learnt_clause[0], cr);
         }
 
       } else {
+        if (conflict_cnt >= restart_limit) {
+          restart_limit *= 1.1;
+          pop_queue_until(0);
+        }
+
         // No Conflict
         if (learnts.size() >= max_limit_learnts) {
           // Reduce the set of learnt clauses
