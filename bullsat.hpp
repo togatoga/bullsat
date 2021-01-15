@@ -368,13 +368,12 @@ public:
 
   bool simplify() {
     assert(decision_level() == 0);
-    auto f = [&](std::vector<CRef> &cls) {
+    auto remove_satisfied = [&](std::vector<CRef> &cls) {
       // learnts
       size_t new_cls_size = 0;
       for (size_t i = 0; i < cls.size(); i++) {
         CRef cr = cls[i];
-        Clause &clause = *cr;
-        size_t new_size = 0;
+        const Clause &clause = *cr;
         bool satisfied = false;
         for (size_t j = 0; j < clause.size(); j++) {
           LitBool lb = eval(clause[j]);
@@ -382,29 +381,20 @@ public:
             unwatch_clause(cr);
             satisfied = true;
             break;
-          } else if (lb == LitBool::Undefine) {
-            clause[new_size++] = clause[j];
           }
         }
 
         if (!satisfied) {
-          clause.resize(new_size);
-          if (new_size == 0) {
-            return false;
-          } else if (new_size == 1) {
-            enqueue(clause[0]);
-          } else {
-            cls[new_cls_size] = cr;
-            new_cls_size++;
-          }
+          cls[new_cls_size] = cr;
+          new_cls_size++;
         }
       }
       cls.resize(new_cls_size);
       return true;
     };
     bool ok = true;
-    ok &= f(learnts);
-    ok &= f(clauses);
+    ok &= remove_satisfied(learnts);
+    ok &= remove_satisfied(clauses);
     return ok;
   }
   Status solve() {
