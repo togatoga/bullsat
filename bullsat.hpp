@@ -175,19 +175,42 @@ public:
       clauses.push_back(cr);
     }
   }
+
   void add_clause(const Clause &clause) {
+    assert(decision_level() == 0);
     // grow the size
     std::for_each(clause.begin(), clause.end(), [&](Lit lit) {
       if (lit.vidx() >= assings.size()) {
         new_var();
       }
     });
-
-    if (clause.size() == 1) {
+    Clause ps = clause;
+    size_t new_len = 0;
+    std::sort(ps.begin(), ps.end());
+    for (size_t i = 0; i < ps.size(); i++) {
+      if (eval(ps[i]) == LitBool::True) {
+        return;
+      }
+      if (i >= 1) {
+        if (ps[i] == ~ps[i - 1]) {
+          return;
+        }
+        if (ps[i] == ps[i - 1]) {
+          continue;
+        }
+      }
+      if (eval(ps[i]) != LitBool::False) {
+        ps[new_len++] = ps[i];
+      }
+    }
+    ps.resize(new_len);
+    if (ps.empty()) {
+      status = Status::Unsat;
+    } else if (ps.size() == 1) {
       // Unit Clause
-      enqueue(clause[0]);
+      enqueue(ps[0]);
     } else {
-      CRef cr = std::make_shared<Clause>(clause);
+      CRef cr = std::make_shared<Clause>(ps);
       attach_clause(cr);
     }
   }
@@ -343,7 +366,51 @@ public:
     learnts.resize(new_size);
   }
 
+  bool simplify() {
+    assert(decision_level() == 0);
+    auto f = [&](std::vector<CRef> &cls) {
+      // learnts
+      size_t new_cls_size = 0;
+      for (size_t i = 0; i < cls.size(); i++) {
+        CRef cr = cls[i];
+        Clause &clause = *cr;
+        size_t new_size = 0;
+        bool satisfied = false;
+        for (size_t j = 0; j < clause.size(); j++) {
+          LitBool lb = eval(clause[j]);
+          if (lb == LitBool::True) {
+            unwatch_clause(cr);
+            satisfied = true;
+            break;
+          } else if (lb == LitBool::Undefine) {
+            clause[new_size++] = clause[j];
+          }
+        }
+
+        if (!satisfied) {
+          clause.resize(new_size);
+          if (new_size == 0) {
+            return false;
+          } else if (new_size == 1) {
+            enqueue(clause[0]);
+          } else {
+            cls[new_cls_size] = cr;
+            new_cls_size++;
+          }
+        }
+      }
+      cls.resize(new_cls_size);
+      return true;
+    };
+    bool ok = true;
+    ok &= f(learnts);
+    ok &= f(clauses);
+    return ok;
+  }
   Status solve() {
+    if (status) {
+      return status.value();
+    }
     double max_limit_learnts = clauses.size() * 0.3;
     size_t conflict_cnt = 0;
     double restart_limit = 100;
@@ -352,6 +419,7 @@ public:
         // Conflict
         conflict_cnt++;
         if (decision_level() == 0) {
+          status = Status::Unsat;
           return Status::Unsat;
         }
         auto [learnt_clause, back_jump_level] = analyze(conflict.value());
@@ -369,7 +437,10 @@ public:
           restart_limit *= 1.1;
           pop_queue_until(0);
         }
-
+        if (decision_level() == 0 && !simplify()) {
+          status = Status::Unsat;
+          return Status::Unsat;
+        }
         // No Conflict
         if (learnts.size() >= max_limit_learnts) {
           // Reduce the set of learnt clauses
@@ -379,13 +450,15 @@ public:
 
         if (!unselected_vars.empty()) {
           Var v = *unselected_vars.begin();
-          Lit next = Lit(v, assings[v]);
+          Lit next = Lit(v, assings[static_cast<size_t>(v)]);
           new_decision(next);
         } else {
+          status = Status::Sat;
           return Status::Sat;
         }
       }
     }
+    status = Status::Unknown;
     return Status::Unknown;
   }
   // All variables
