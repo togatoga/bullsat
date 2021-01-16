@@ -19,22 +19,24 @@ void write_result(const Solver &solver, Status status, std::ostream &os,
   } else {
     result = "UNKNOWN";
   }
-  std::string assigns = "";
-  for (size_t v = 0; v < solver.assings.size(); v++) {
-    if (solver.assings[v]) {
-      assigns += std::to_string(v + 1) + " ";
-    } else {
-      assigns += "-" + std::to_string(v + 1) + " ";
-    }
-  }
-  assigns += "0";
+
   if (tostdout) {
     os << "s " << result << std::endl;
-
   } else {
     os << result << std::endl;
   }
-  os << assigns << std::endl;
+  if (status == Status::Sat) {
+    std::string assigns = "";
+    for (size_t v = 0; v < solver.assings.size(); v++) {
+      if (solver.assings[v]) {
+        assigns += std::to_string(v + 1) + " ";
+      } else {
+        assigns += "-" + std::to_string(v + 1) + " ";
+      }
+    }
+    assigns += "0";
+    os << assigns << std::endl;
+  }
 }
 int main(int argc, char *argv[]) {
   if (!(argc == 2 || argc == 3)) {

@@ -180,15 +180,15 @@ std::ostream &operator<<(std::ostream &os, const Clause &clause) {
 class Solver {
 public:
   Solver() = default;
-  explicit Solver(size_t variable_num) : que_head(0), var_bump_inc(1.0) {
+  explicit Solver(size_t variable_num)
+      : skip_simplify(false), que_head(0), var_bump_inc(1.0) {
     assings.resize(variable_num);
     watchers.resize(2 * variable_num);
     reasons.resize(variable_num);
     levels.resize(variable_num);
-
+    seen.resize(variable_num);
     que.clear();
     for (size_t v = 0; v < variable_num; v++) {
-      unselected_vars.insert(Var(v));
       order_heap.push(Var(v));
     }
   }
@@ -216,7 +216,6 @@ public:
 
   void enqueue(Lit lit, std::optional<CRef> reason = std::nullopt) {
     assert(!levels[lit.vidx()].has_value());
-    unselected_vars.erase(lit.var());
     levels[lit.vidx()] = decision_level();
     assings[lit.vidx()] = lit.pos() ? true : false;
     reasons[lit.vidx()] = reason;
@@ -229,10 +228,8 @@ public:
     while (!que.empty()) {
       Lit lit = que.back();
       if (levels[lit.vidx()] > until_level) {
-        unselected_vars.insert(lit.var());
         if (!order_heap.in_heap(lit.var())) {
           order_heap.push(lit.var());
-          order_heap.update(lit.var());
         }
         reasons[lit.vidx()] = std::nullopt;
         levels[lit.vidx()] = std::nullopt;
@@ -267,8 +264,8 @@ public:
     watchers.push_back(std::vector<CRef>());
     watchers.push_back(std::vector<CRef>());
     // variable index
-    unselected_vars.insert(v);
     assings.push_back(false);
+    seen.push_back(false);
     reasons.push_back(std::nullopt);
     levels.push_back(std::nullopt);
     order_heap.push(v);
@@ -408,9 +405,15 @@ public:
 
   [[nodiscard]] std::pair<Clause, int> analyze(CRef conflict) {
     Clause learnt_clause;
-
+    assert([&]() {
+      bool ok = false;
+      for (const bool b : seen) {
+        ok |= b;
+      }
+      return !ok;
+    }());
     const int conflicted_decision_level = decision_level();
-    std::unordered_set<Var> checking_variables;
+
     int counter = 0;
     {
       const Clause &clause = *conflict;
@@ -418,7 +421,7 @@ public:
       // variables that are used to traverse by a conflicted clause
       for (const Lit &lit : clause) {
         assert(eval(lit) == LitBool::False);
-        checking_variables.insert(lit.var());
+        seen[lit.vidx()] = true;
         var_bump_activity(lit.var(), var_bump_inc);
         if (levels[lit.vidx()] < conflicted_decision_level) {
           learnt_clause.emplace_back(lit);
@@ -434,7 +437,7 @@ public:
     for (size_t i = que.size() - 1; true; i--) {
       Lit lit = que[i];
       // Skip a variable that isn't checked.
-      if (checking_variables.count(lit.var()) == 0) {
+      if (!seen[lit.vidx()]) {
         continue;
       }
       counter--;
@@ -443,7 +446,8 @@ public:
         first_uip = lit;
         break;
       }
-      checking_variables.insert(lit.var());
+      seen[lit.vidx()] = false;
+
       assert(reasons[lit.vidx()].has_value());
       CRef reason = reasons[lit.vidx()].value();
       const Clause clause = *reason;
@@ -451,10 +455,10 @@ public:
       for (size_t j = 1; j < clause.size(); j++) {
         Lit clit = clause[j];
         // Already checked
-        if (checking_variables.count(clit.var()) > 0) {
+        if (seen[clit.vidx()]) {
           continue;
         }
-        checking_variables.insert(clit.var());
+        seen[clit.vidx()] = true;
         var_bump_activity(lit.var(), var_bump_inc);
         if (levels[clit.vidx()] < conflicted_decision_level) {
           learnt_clause.push_back(clit);
@@ -474,6 +478,10 @@ public:
       assert(levels[learnt_clause[i].vidx()].has_value());
       back_jump_level =
           std::max(back_jump_level, levels[learnt_clause[i].vidx()].value());
+    }
+
+    for (const Lit &lit : learnt_clause) {
+      seen[lit.vidx()] = false;
     }
 
     return std::make_pair(learnt_clause, back_jump_level);
@@ -498,7 +506,7 @@ public:
     learnts.resize(new_size);
   }
 
-  bool simplify() {
+  void simplify() {
     assert(decision_level() == 0);
     auto remove_satisfied = [&](std::vector<CRef> &cls) {
       // learnts
@@ -522,12 +530,10 @@ public:
         }
       }
       cls.resize(new_cls_size);
-      return true;
     };
-    bool ok = true;
-    ok &= remove_satisfied(learnts);
-    ok &= remove_satisfied(clauses);
-    return ok;
+
+    remove_satisfied(learnts);
+    remove_satisfied(clauses);
   }
   Status solve() {
     if (status) {
@@ -548,6 +554,10 @@ public:
         pop_queue_until(back_jump_level);
         if (learnt_clause.size() == 1) {
           enqueue(learnt_clause[0]);
+          // a unit clause can simplify clauses
+          // (!x1)
+          // Delete: (!x1 v x2 v x3)
+          skip_simplify = false;
         } else {
           CRef cr = std::make_shared<Clause>(learnt_clause);
           attach_clause(cr, true);
@@ -556,20 +566,23 @@ public:
 
         var_bump_inc *= (1.0 / 0.95);
       } else {
+        // No Conflict
         if (conflict_cnt >= static_cast<size_t>(restart_limit)) {
           restart_limit *= 1.1;
-          pop_queue_until(0);
+          // pop_queue_until(0);
         }
-        if (decision_level() == 0 && !simplify()) {
-          status = Status::Unsat;
-          return Status::Unsat;
+
+        if (!skip_simplify && decision_level() == 0) {
+          // simplify clauses at the top level.
+          simplify();
+          skip_simplify = true;
         }
-        // No Conflict
-        if (learnts.size() >= static_cast<size_t>(max_limit_learnts)) {
-          // Reduce the set of learnt clauses
-          max_limit_learnts *= 1.1;
-          reduce_learnts();
-        }
+
+        // if (learnts.size() >= static_cast<size_t>(max_limit_learnts)) {
+        //   // Reduce the set of learnt clauses
+        //   max_limit_learnts *= 1.1;
+        //   reduce_learnts();
+        // }
         while (true) {
           // std::cout << std::endl;
           if (std::optional<Var> v = order_heap.pop()) {
@@ -601,9 +614,11 @@ private:
   std::vector<std::vector<CRef>> watchers;
   std::vector<std::optional<CRef>> reasons;
   std::vector<std::optional<int>> levels;
+  std::vector<bool> seen;
+  bool skip_simplify;
+
   std::deque<Lit> que;
   size_t que_head;
-  std::unordered_set<Var> unselected_vars;
   Heap order_heap;
   double var_bump_inc;
 };
