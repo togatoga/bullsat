@@ -262,8 +262,8 @@ public:
   void new_var() {
     // literal index
     Var v = Var(assings.size());
-    watchers.push_back(std::vector<CRef>());
-    watchers.push_back(std::vector<CRef>());
+    watchers.push_back(std::vector<CWRef>());
+    watchers.push_back(std::vector<CWRef>());
     // variable index
     assings.push_back(false);
     seen.push_back(false);
@@ -275,17 +275,18 @@ public:
     const Clause &clause = *cr;
     assert(clause.size() > 1);
     for (const auto idx : {0, 1}) {
-      auto &watcher = watchers[(~clause[static_cast<size_t>(idx)]).lidx()];
+      std::vector<CWRef> &watcher =
+          watchers[(~clause[static_cast<size_t>(idx)]).lidx()];
+
       for (size_t i = 0; i < watcher.size(); i++) {
-        if (watcher[i] == cr) {
+        assert(!watcher[i].expired());
+        if (watcher[i].lock() == cr) {
           watcher[i] = watcher.back();
           watcher.pop_back();
-          return;
+          break;
         }
       }
     }
-    // not found
-    assert(false);
     return;
   }
   void watch_clause(const CRef &cr) {
@@ -349,9 +350,10 @@ public:
       const Lit lit = que[que_head++];
       const Lit nlit = ~lit;
 
-      std::vector<CRef> &watcher = watchers[lit.lidx()];
+      std::vector<CWRef> &watcher = watchers[lit.lidx()];
       for (size_t i = 0; i < watcher.size();) {
-        CRef cr = watcher[i];
+        assert(!watcher[i].expired());
+        CRef cr = watcher[i].lock();
         const size_t next_idx = i + 1;
         Clause &clause = *cr;
 
@@ -450,7 +452,8 @@ public:
       seen[lit.vidx()] = false;
 
       assert(reasons[lit.vidx()].has_value());
-      CRef reason = reasons[lit.vidx()].value();
+      assert(!reasons[lit.vidx()].value().expired());
+      CRef reason = reasons[lit.vidx()].value().lock();
       const Clause clause = *reason;
       assert(clause[0] == lit);
       for (size_t j = 1; j < clause.size(); j++) {
@@ -493,7 +496,8 @@ public:
     if (eval(clause[0]) == LitBool::True &&
         reasons[clause[0].vidx()].has_value()) {
       // A clause is being propagated.
-      return reasons[clause[0].vidx()].value() == cr;
+      assert(!reasons[clause[0].vidx()].value().expired());
+      return reasons[clause[0].vidx()].value().lock() == cr;
     }
     return false;
   }
@@ -507,9 +511,9 @@ public:
     for (size_t i = new_size; i < learnts.size(); i++) {
       if (learnts[i]->size() > 2 && !locked(learnts[i])) {
         unwatch_clause(learnts[i]);
-        crs.insert(std::move(learnts[i]));
+        crs.insert(learnts[i]);
       } else {
-        learnts[new_size] = std::move(learnts[i]);
+        learnts[new_size] = learnts[i];
         new_size++;
       }
     }
@@ -621,8 +625,8 @@ public:
 
 private:
   std::vector<CRef> clauses, learnts;
-  std::vector<std::vector<CRef>> watchers;
-  std::vector<std::optional<CRef>> reasons;
+  std::vector<std::vector<CWRef>> watchers;
+  std::vector<std::optional<CWRef>> reasons;
   std::vector<std::optional<int>> levels;
   std::vector<bool> seen;
   bool skip_simplify;
