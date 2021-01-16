@@ -1,8 +1,10 @@
 #include "bullsat.hpp"
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
 using namespace std;
 using namespace bullsat;
 
@@ -59,29 +61,29 @@ void test_propagate() {
   test_start(__func__);
   {
     // Conflict
-    // x0 & x1 & (!x0 v !x1)
-    Solver solver = Solver(10);
+    Solver solver = Solver(2);
+    Lit x0 = Lit(0, true);
+    Lit x1 = Lit(1, true);
     {
-      // x0
-      Clause clause = Clause();
-      clause.push_back(Lit(0, true));
+      // (!x0 v x1)
+      Clause clause = Clause{~x0, x1};
       solver.add_clause(clause);
     }
     {
-      // x1
-      Clause clause = Clause();
-      clause.push_back(Lit(1, true));
+      // (x0 v !x1)
+      Clause clause = Clause{x0, ~x1};
       solver.add_clause(clause);
     }
     {
       // (!x0 v !x1)
-      Clause clause = Clause();
-      clause.push_back(Lit(0, false));
-      clause.push_back(Lit(1, false));
+      Clause clause = Clause{~x0, ~x1};
       solver.add_clause(clause);
     }
+    solver.new_decision(x0);
+
     auto confl = solver.propagate();
-    auto clause = *confl->get();
+    assert(confl.has_value());
+    Clause &clause = *confl.value();
     std::sort(clause.begin(), clause.end());
     assert(clause[0] == Lit(0, false));
     assert(clause[1] == Lit(1, false));
@@ -275,15 +277,22 @@ void test_parse_cnf() {
 
 void test_heap() {
   test_start(__func__);
-  Heap order_heap = Heap();
-  for (size_t i = 0; i < 4; i++) {
-    order_heap.push(i);
-    order_heap.activity[i] += 100 * i;
-    order_heap.update(i);
-  }
 
-  while (auto p = order_heap.pop()) {
-    cout << p.value() << " " << order_heap.activity[p.value()] << std::endl;
+  Heap order_heap = Heap();
+  {
+    vector<pair<double, Var>> values;
+    for (size_t i = 0; i < 4; i++) {
+      order_heap.push(Var(i));
+      order_heap.activity[i] += 100.0 * static_cast<double>(i);
+      order_heap.update(Var(i));
+      values.emplace_back(make_pair(order_heap.activity[i], i));
+    }
+    sort(values.rbegin(), values.rend());
+    for (const auto &val : values) {
+      auto [act, var] = val;
+      auto hvar = order_heap.pop().value_or(-1);
+      assert(hvar == var);
+    }
   }
 }
 

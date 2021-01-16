@@ -60,16 +60,17 @@ struct Heap {
   std::vector<std::optional<size_t>> indices;
   std::vector<double> activity;
   Heap() = default;
+
   std::optional<Var> top() {
     if (heap.empty()) {
       return {};
     }
     return heap[0];
   }
-  bool less(Var left, Var right) {
+  bool gt(Var left, Var right) {
     size_t l = static_cast<size_t>(left);
     size_t r = static_cast<size_t>(right);
-    return activity[l] < activity[r];
+    return activity[l] > activity[r];
   }
   void heap_up(size_t i) {
     if (i == 0) {
@@ -77,18 +78,18 @@ struct Heap {
     }
     Var x = heap[i];
     size_t p = (i - 1) >> 1;
-    std::cerr << "i " << i << " " << p << " " << activity[heap[p]] << " "
-              << activity[heap[i]] << " " << less(heap[p], heap[i])
-              << std::endl;
-    while (i != 0 && less(heap[p], heap[i])) {
 
+    while (i != 0) {
+      if (!gt(x, heap[p])) {
+        break;
+      }
       heap[i] = heap[p];
-      indices[heap[p]] = i;
+      indices[static_cast<size_t>(heap[p])] = i;
       i = p;
-      p = (i - 1) >> 1;
+      p = (p - 1) >> 1;
     }
     heap[i] = x;
-    indices[x] = i;
+    indices[static_cast<size_t>(x)] = i;
   }
   void heap_down(size_t i) {
     Var x = heap[i];
@@ -96,37 +97,29 @@ struct Heap {
       size_t left = 2 * i + 1;
       size_t right = 2 * i + 2;
       size_t child =
-          right < heap.size() && less(heap[left], heap[right]) ? right : left;
-      if (right < heap.size()) {
-        std::cout << left << " " << right << " " << child << std::endl;
-        std::cout << activity[heap[left]] << " " << activity[heap[right]] << " "
-                  << activity[heap[child]] << std::endl;
-      }
-      // std::cerr << less(x, heap[child]) << std::endl;
-      if (less(x, heap[child])) {
+          right < heap.size() && gt(heap[right], heap[left]) ? right : left;
+      if (gt(heap[child], x)) {
         heap[i] = heap[child];
-        indices[heap[i]] = i;
+        indices[static_cast<size_t>(heap[i])] = i;
         i = child;
       } else {
         break;
       }
     }
     heap[i] = x;
-    indices[x] = i;
+    indices[static_cast<size_t>(x)] = i;
   }
   std::optional<Var> pop() {
 
     if (heap.empty()) {
       return {};
     }
-    for (const auto v : heap) {
-      std::cerr << v << std::endl;
-    }
-    std::cerr << std::endl;
     Var x = heap[0];
-    indices[x] = std::nullopt;
-    heap[0] = heap.back();
-    indices[heap[0]] = 0;
+    indices[static_cast<size_t>(x)] = std::nullopt;
+    if (heap.size() > 1) {
+      heap[0] = heap.back();
+      indices[static_cast<size_t>(heap[0])] = 0;
+    }
 
     heap.pop_back();
     if (heap.size() > 1) {
@@ -140,31 +133,36 @@ struct Heap {
     if (in_heap(v)) {
       return;
     }
-
-    indices.resize(v + 1);
-    activity.resize(v + 1);
+    while (static_cast<size_t>(v) >= indices.size()) {
+      indices.push_back(std::nullopt);
+      activity.push_back(0.0);
+    }
     assert(!in_heap(v));
-    indices[v] = heap.size();
+    indices[static_cast<size_t>(v)] = heap.size();
     heap.push_back(v);
-    heap_up(indices[v].value());
+    heap_up(indices[static_cast<size_t>(v)].value());
   }
   size_t size() const { return heap.size(); }
   bool empty() const { return heap.empty(); }
-  bool in_heap(Var x) { return x < indices.size() && indices[x].has_value(); }
+  bool in_heap(Var x) {
+    return static_cast<size_t>(x) < indices.size() &&
+           indices[static_cast<size_t>(x)].has_value();
+  }
   void increase(Var n) {
     assert(in_heap(n));
-    heap_up(indices[n].value());
+    heap_up(indices[static_cast<size_t>(n)].value());
   }
   void decrease(Var n) {
     assert(in_heap(n));
-    heap_down(indices[n].value());
+    heap_down(indices[static_cast<size_t>(n)].value());
   }
   void update(Var n) {
     if (!in_heap(n)) {
       push(n);
     } else {
-      heap_up(indices[n].value());
-      heap_down(indices[n].value());
+      const size_t idx = static_cast<size_t>(n);
+      heap_up(indices[idx].value());
+      heap_down(indices[idx].value());
     }
   }
 };
@@ -187,6 +185,7 @@ public:
     watchers.resize(2 * variable_num);
     reasons.resize(variable_num);
     levels.resize(variable_num);
+
     que.clear();
     for (size_t v = 0; v < variable_num; v++) {
       unselected_vars.insert(Var(v));
@@ -233,6 +232,7 @@ public:
         unselected_vars.insert(lit.var());
         if (!order_heap.in_heap(lit.var())) {
           order_heap.push(lit.var());
+          order_heap.update(lit.var());
         }
         reasons[lit.vidx()] = std::nullopt;
         levels[lit.vidx()] = std::nullopt;
@@ -248,11 +248,9 @@ public:
     }
   }
   void var_bump_activity(Var v, double inc) {
-    if (!order_heap.in_heap(v)) {
-      order_heap.push(v);
-    }
-    order_heap.activity[v] += inc;
-    if (order_heap.activity[v] > 1e100) {
+    const size_t idx = static_cast<size_t>(v);
+    order_heap.activity[idx] += inc;
+    if (order_heap.activity[idx] > 1e100) {
       // rescale
       for (size_t i = 0; i < assings.size(); i++) {
         order_heap.activity[i] *= 1e-100;
@@ -260,7 +258,7 @@ public:
       var_bump_inc *= 1e-100;
     }
     if (order_heap.in_heap(v)) {
-      order_heap.decrease(v);
+      order_heap.update(v);
     }
   }
   void new_var() {
@@ -535,7 +533,7 @@ public:
     if (status) {
       return status.value();
     }
-    double max_limit_learnts = clauses.size() * 0.3;
+    double max_limit_learnts = static_cast<double>(clauses.size()) * 0.3;
     size_t conflict_cnt = 0;
     double restart_limit = 100;
     while (true) {
@@ -558,7 +556,7 @@ public:
 
         var_bump_inc *= (1.0 / 0.95);
       } else {
-        if (conflict_cnt >= restart_limit) {
+        if (conflict_cnt >= static_cast<size_t>(restart_limit)) {
           restart_limit *= 1.1;
           pop_queue_until(0);
         }
@@ -567,7 +565,7 @@ public:
           return Status::Unsat;
         }
         // No Conflict
-        if (learnts.size() >= max_limit_learnts) {
+        if (learnts.size() >= static_cast<size_t>(max_limit_learnts)) {
           // Reduce the set of learnt clauses
           max_limit_learnts *= 1.1;
           reduce_learnts();
@@ -575,12 +573,12 @@ public:
         while (true) {
           // std::cout << std::endl;
           if (std::optional<Var> v = order_heap.pop()) {
-            if (levels[v.value()].has_value()) {
+            const size_t idx = static_cast<size_t>(v.value());
+            if (levels[idx].has_value()) {
               continue;
             }
-            // std::cout << v.value() << " " << order_heap.activity[v.value()]
-            //           << std::endl;
-            Lit next = Lit(v.value(), assings[static_cast<size_t>(v.value())]);
+
+            Lit next = Lit(v.value(), assings[idx]);
             new_decision(next);
             break;
           } else {

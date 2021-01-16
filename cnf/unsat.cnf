@@ -2,7 +2,7 @@ c
 c This is a sample input file.
 c (unsatisfiable)
 c
-p cnf 3 5
+p cnf 3 6
 1 -2 3 0
 -1 2 0
 -2 -3 0
