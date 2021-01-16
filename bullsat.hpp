@@ -23,6 +23,7 @@ using Var = int;
 struct Lit;
 using Clause = std::vector<Lit>;
 using CRef = std::shared_ptr<Clause>;
+using CWRef = std::weak_ptr<Clause>;
 
 // x is
 // even: positive x0 (0 -> x0, 2 -> x1)
@@ -486,7 +487,16 @@ public:
 
     return std::make_pair(learnt_clause, back_jump_level);
   }
+  bool locked(const CRef &cr) {
+    const Clause &clause = *cr;
 
+    if (eval(clause[0]) == LitBool::True &&
+        reasons[clause[0].vidx()].has_value()) {
+      // A clause is being propagated.
+      return reasons[clause[0].vidx()].value() == cr;
+    }
+    return false;
+  }
   void reduce_learnts() {
     std::sort(learnts.begin(), learnts.end(),
               [](const auto &left, const auto &right) {
@@ -495,7 +505,7 @@ public:
     size_t new_size = learnts.size() / 2;
     std::unordered_set<CRef> crs;
     for (size_t i = new_size; i < learnts.size(); i++) {
-      if (learnts[i]->size() > 2) {
+      if (learnts[i]->size() > 2 && !locked(learnts[i])) {
         unwatch_clause(learnts[i]);
         crs.insert(std::move(learnts[i]));
       } else {
@@ -578,11 +588,11 @@ public:
           skip_simplify = true;
         }
 
-        // if (learnts.size() >= static_cast<size_t>(max_limit_learnts)) {
-        //   // Reduce the set of learnt clauses
-        //   max_limit_learnts *= 1.1;
-        //   reduce_learnts();
-        // }
+        if (learnts.size() >= static_cast<size_t>(max_limit_learnts)) {
+          // Reduce the set of learnt clauses
+          max_limit_learnts *= 1.1;
+          reduce_learnts();
+        }
         while (true) {
           // std::cout << std::endl;
           if (std::optional<Var> v = order_heap.pop()) {
