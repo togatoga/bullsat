@@ -52,9 +52,15 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#_1">はじめに</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_2">準備</a>
-    </li>
     </ul>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="01_preparation/">準備</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="02_basic/">クラスと型の設計</a>
                     </li>
                 </ul>
       </div>
@@ -91,12 +97,28 @@
               
                 <h1 id="cdcl-satbullsat">ゼロから作るCDCL SATソルバ(bullsat)</h1>
 <h2 id="_1">はじめに</h2>
-<p>充足可能性問題とは与えられた命題論理式が充足可能かまたは不可能かを判定をする問題です(<code>SAT</code>)
-<code>SAT</code>はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
-SATを解くソフトウェア<code>SATソルバ</code>の多くはConflict-Driven-Clause-Learning(<code>CDCL</code>)と呼ばれる、矛盾(<code>Conflict</code>)から新たな節(<code>Clause</code>)を導出し現問題に追加することにより、高速にSATを解くことができます。</p>
-<p>本記事でゼロからCDCL SATソルバを実装しながらSATソルバの理解することを目的としており、SATソルバの必要最低限の機能とアルゴリズムだけを実装します。実装するSATソルバは<code>minisat</code>をベースとします。<br />
-言語は<code>C++17</code>でコンパイラは<code>clang++</code>とします。環境は<code>Linux</code>または<code>macOS</code>を想定しています。
+<p>充足可能性問題(satisfiability problem)とは与えられた二値(true/false)の命題論理式が充足可能(<code>SAT</code>)な変数の真偽値の割り当てが存在するか、またはそういった割り当てが存在しない充足不能(<code>UNSAT</code>)かを判定する問題です。  </p>
+<ul>
+<li>命題変数(<code>Variable</code>) true/falseの二値変数</li>
+<li>リテラル(<code>Literal</code>) 命題変数またはその否定</li>
+<li>節(<code>Clause</code>) 複数のリテラルをorで結んだ式</li>
+<li>命題論理式 複数の節をandで結んだ式</li>
+</ul>
+<p>以下の命題論理式を例に上げて考えてみましょう。
+<script type="math/tex; mode=display">
+(x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
+</script>
+</p>
+<p>SAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
+SAT問題を解くソフトウェアを<code>SATソルバ</code>と呼ばれます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(<code>CDCL</code>)が挙げられます。<br />
+CDCLとは矛盾(<code>Conflict</code>)から矛盾の原因となった変数の割り当てを防ぐ新たな節(<code>Clause</code>)を導出して、探索の枝刈りを行うことで高速にSATを解くことができます。CDCLアルゴリズムによって扱える変数の数が増え、現実問題から派生した数十万~数百万の変数のSAT問題を解けるようになりました。</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>本記事とSATソルバのコードは<a href="https://github.com/togatoga/bullsat">GitHub</a>上で管理されています。pull requestは大歓迎です。</p>
+</div>
+<p>言語は<code>C++17</code>でコンパイラは<code>clang++</code>とします。環境は<code>Linux</code>または<code>macOS</code>を想定しています。
 使用するライブラリは標準ライブラリ(<code>std</code>)のみだけとします。</p>
+<p>以下は筆者の環境です。</p>
 <pre><code class="language-bash">% cat /etc/os-release
 NAME=&quot;Ubuntu&quot;
 VERSION=&quot;20.04.1 LTS (Focal Fossa)&quot;
@@ -117,15 +139,19 @@ Target: x86_64-pc-linux-gnu
 Thread model: posix
 InstalledDir: /usr/bin
 </code></pre>
-<p><code>C++17</code>の機能を使いますが、本記事では言語自体については説明いたしません。</p>
-<h2 id="_2">準備</h2>
-<p>我々が作成するSATソルバは<code>bullsat</code>とします。SATソルバの機能としては最小限で賢くはなく問題が解けるまでプログラムは停止しません。
-なのでひたすら突っ走る闘牛の<code>bull</code>と<code>sat</code>で<code>bullsat</code>です。いい名前ですね。
-必要なファイルを準備しましょう。</p>
+<p><code>C++17</code>の機能を使いますが、本記事では言語自体については説明いたしません。<br />
+それでは始めていきましょう。</p>
               
             </div>
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="01_preparation/" class="btn btn-neutral float-right" title="準備">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+    </div>
   
 
   <hr/>
@@ -150,10 +176,13 @@ InstalledDir: /usr/bin
       
       
       
+        <span style="margin-left: 15px"><a href="01_preparation/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
     </span>
 </div>
     <script>var base_url = '.';</script>
     <script src="js/theme.js" defer></script>
+      <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" defer></script>
       <script src="search/main.js" defer></script>
     <script defer>
         window.onload = function () {
@@ -166,5 +195,5 @@ InstalledDir: /usr/bin
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-17 06:27:33.296011+00:00
+Build Date UTC : 2021-01-17 10:31:28.420851+00:00
 -->
