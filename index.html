@@ -108,7 +108,16 @@
 $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$</p>
-<p>SAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
+<p>\(x_1\)と\(\lnot x_1\)はリテラル、\((x_1\lor\lnot x_3)\)はClauseです。
+上記の論理式はSATです。以下がSATな真偽値の割り当てです。
+$$
+x_1=true,x_2=true,x_3=false
+$$
+逆に以下のような論理式は、SATな真偽値の割り当てが存在しないのでUNSATです。</p>
+<p>$$
+(x_1 \lor \lnot x_2 \lor x_3) \land (\lnot x_1 \lor x_2) \land (x_1 \lor x_2 \lor \lnot x_3) \land (x_1 \lor x_3) \land (\lnot x_1 \lor \lnot x_2 \lor x_3)
+$$</p>
+<p>Clauseの長さが3以上(e.g. \((x_2\lor x_3\lor\lnot x_1)\)のSAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
 SAT問題を解くソフトウェアを<code>SATソルバ</code>と呼ばれます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(<code>CDCL</code>)が挙げられます。<br />
 CDCLとは矛盾(<code>Conflict</code>)から矛盾の原因となった変数の割り当てを防ぐ新たな節(<code>Clause</code>)を導出して、探索の枝刈りを行うことで高速にSATを解くことができます。CDCLアルゴリズムによって扱える変数の数が増え、現実問題から派生した数十万~数百万の変数のSAT問題を解けるようになりました。</p>
 <div class="admonition note">
@@ -194,5 +203,5 @@ InstalledDir: /usr/bin
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-17 10:32:55.281274+00:00
+Build Date UTC : 2021-01-17 10:59:57.545269+00:00
 -->
