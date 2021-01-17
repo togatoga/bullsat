@@ -52,6 +52,8 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#_1">はじめに</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">準備</a>
+    </li>
     </ul>
                     </li>
                 </ul>
@@ -89,7 +91,37 @@
               
                 <h1 id="cdcl-satbullsat">ゼロから作るCDCL SATソルバ(bullsat)</h1>
 <h2 id="_1">はじめに</h2>
-<p>ほげほげほげ</p>
+<p>充足可能性問題とは与えられた命題論理式が充足可能かまたは不可能かを判定をする問題です(<code>SAT</code>)
+<code>SAT</code>はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
+SATを解くソフトウェア<code>SATソルバ</code>の多くはConflict-Driven-Clause-Learning(<code>CDCL</code>)と呼ばれる、矛盾(<code>Conflict</code>)から新たな節(<code>Clause</code>)を導出し現問題に追加することにより、高速にSATを解くことができます。</p>
+<p>本記事でゼロからCDCL SATソルバを実装しながらSATソルバの理解することを目的としており、SATソルバの必要最低限の機能とアルゴリズムだけを実装します。実装するSATソルバは<code>minisat</code>をベースとします。<br />
+言語は<code>C++17</code>でコンパイラは<code>clang++</code>とします。環境は<code>Linux</code>または<code>macOS</code>を想定しています。
+使用するライブラリは標準ライブラリ(<code>std</code>)のみだけとします。</p>
+<pre><code class="language-bash">% cat /etc/os-release
+NAME=&quot;Ubuntu&quot;
+VERSION=&quot;20.04.1 LTS (Focal Fossa)&quot;
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME=&quot;Ubuntu 20.04.1 LTS&quot;
+VERSION_ID=&quot;20.04&quot;
+HOME_URL=&quot;https://www.ubuntu.com/&quot;
+SUPPORT_URL=&quot;https://help.ubuntu.com/&quot;
+BUG_REPORT_URL=&quot;https://bugs.launchpad.net/ubuntu/&quot;
+PRIVACY_POLICY_URL=&quot;https://www.ubuntu.com/legal/terms-and-policies/privacy-policy&quot;
+VERSION_CODENAME=focal
+UBUNTU_CODENAME=focal
+
+% clang++ --version
+clang version 10.0.0-4ubuntu1 
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+</code></pre>
+<p><code>C++17</code>の機能を使いますが、本記事では言語自体については説明いたしません。</p>
+<h2 id="_2">準備</h2>
+<p>我々が作成するSATソルバは<code>bullsat</code>とします。SATソルバの機能としては最小限で賢くはなく問題が解けるまでプログラムは停止しません。
+なのでひたすら突っ走る闘牛の<code>bull</code>と<code>sat</code>で<code>bullsat</code>です。いい名前ですね。
+必要なファイルを準備しましょう。</p>
               
             </div>
           </div>
@@ -134,5 +166,5 @@
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-17 05:11:13.165246+00:00
+Build Date UTC : 2021-01-17 06:27:33.296011+00:00
 -->
