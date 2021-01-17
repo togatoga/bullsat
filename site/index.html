@@ -105,10 +105,9 @@
 <li>命題論理式 複数の節をandで結んだ式</li>
 </ul>
 <p>以下の命題論理式を例に上げて考えてみましょう。
-<script type="math/tex; mode=display">
+$$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
-</script>
-</p>
+$$</p>
 <p>SAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
 SAT問題を解くソフトウェアを<code>SATソルバ</code>と呼ばれます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(<code>CDCL</code>)が挙げられます。<br />
 CDCLとは矛盾(<code>Conflict</code>)から矛盾の原因となった変数の割り当てを防ぐ新たな節(<code>Clause</code>)を導出して、探索の枝刈りを行うことで高速にSATを解くことができます。CDCLアルゴリズムによって扱える変数の数が増え、現実問題から派生した数十万~数百万の変数のSAT問題を解けるようになりました。</p>
@@ -182,7 +181,7 @@ InstalledDir: /usr/bin
 </div>
     <script>var base_url = '.';</script>
     <script src="js/theme.js" defer></script>
-      <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" defer></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML" defer></script>
       <script src="search/main.js" defer></script>
     <script defer>
         window.onload = function () {
@@ -195,5 +194,5 @@ InstalledDir: /usr/bin
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-17 10:31:28.420851+00:00
+Build Date UTC : 2021-01-17 10:32:55.281274+00:00
 -->
