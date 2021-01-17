@@ -1,3 +1,8 @@
 site_name: ゼロから作るCDCL SATソルバ(bullsat)
 
 theme: readthedocs
+markdown_extensions:
+    - admonition
+    - mdx_math
+extra_javascript: 
+  - http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
