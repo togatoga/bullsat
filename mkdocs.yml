@@ -1,1 +1,3 @@
-site_name: My Docs
+site_name: ゼロから作るCDCL SATソルバ(bullsat)
+
+theme: readthedocs
