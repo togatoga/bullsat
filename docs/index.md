@@ -13,8 +13,18 @@ $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$
 
+\\(x_1\\)と\\(\lnot x_1\\)はリテラル、\\((x_1\lor\lnot x_3)\\)はClauseです。
+上記の論理式はSATです。以下がSATな真偽値の割り当てです。
+$$
+x_1=true,x_2=true,x_3=false
+$$
+逆に以下のような論理式は、SATな真偽値の割り当てが存在しないのでUNSATです。
 
-SAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。  
+$$
+(x_1 \lor \lnot x_2 \lor x_3) \land (\lnot x_1 \lor x_2) \land (x_1 \lor x_2 \lor \lnot x_3) \land (x_1 \lor x_3) \land (\lnot x_1 \lor \lnot x_2 \lor x_3)
+$$
+
+Clauseの長さが3以上(e.g. \\((x_2\lor x_3\lor\lnot x_1)\\)のSAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。  
 SAT問題を解くソフトウェアを`SATソルバ`と呼ばれます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(`CDCL`)が挙げられます。  
 CDCLとは矛盾(`Conflict`)から矛盾の原因となった変数の割り当てを防ぐ新たな節(`Clause`)を導出して、探索の枝刈りを行うことで高速にSATを解くことができます。CDCLアルゴリズムによって扱える変数の数が増え、現実問題から派生した数十万~数百万の変数のSAT問題を解けるようになりました。
 
