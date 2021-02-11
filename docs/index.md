@@ -1,7 +1,7 @@
 # ゼロから作るCDCL SATソルバ(bullsat)
 
 ## はじめに
-充足可能性問題(satisfiability problem)とは与えられた二値(true/false)の命題論理式が充足可能(`SAT`)な変数の真偽値の割り当てが存在するか、またはそういった割り当てが存在しない充足不能(`UNSAT`)かを判定する問題です。  
+充足可能性問題(satisfiability problem)とは与えられた二値(true/false)の命題論理式が充足可能(`SAT`)な変数の真偽値の割り当てが存在するか、またはそういった割り当てが存在しない充足不能(`UNSAT`)かを判定する問題です。  　
 
 - 命題変数(`Variable`) true/falseの二値変数
 - リテラル(`Literal`) 命題変数またはその否定
@@ -13,7 +13,9 @@ $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$
 
-\\(x_1\\)と\\(\lnot x_1\\)はリテラル、\\((x_1\lor\lnot x_3)\\)はClauseです。
+\\(x_1\\)と\\(\lnot x_1\\)はリテラルです。更に\\(x_1\\)は`正`のリテラル、\\(\lnot x_1\\)は`負`のリテラルと呼びます。
+
+\\((x_1\lor\lnot x_3)\\)はClauseです。
 上記の論理式はSATです。以下がSATな真偽値の割り当てです。
 $$
 x_1=true,x_2=true,x_3=false
