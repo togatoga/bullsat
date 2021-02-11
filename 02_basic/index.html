@@ -119,12 +119,13 @@ using Clause = std::vector&lt;Lit&gt;; //節: (x1 or !x2 or x3)
 <li>節(<code>Clause</code>) <code>std::vector&lt;Lit&gt;</code></li>
 </ul>
 <h3 id="_2">リテラルの設計</h3>
-<p>リテラルは<code>正</code>のリテラル(\(x_1\))と<code>負</code>のリテラル((\lnot x_1\))が存在します。少しトリッキーなのですが、正のリテラルは<code>偶数</code>、負のリテラルは<code>奇数</code>として表現します。</p>
+<p>リテラルは<code>正</code>のリテラル\(x_1\)と<code>負</code>のリテラル\(\lnot x_1\)が存在します。<br />
+正のリテラルは<code>偶数</code>、負のリテラルは<code>奇数</code>として表現します。</p>
 <ul>
 <li>正のリテラル: \(x_0\)は<code>0</code>、\(x_1\)は<code>2</code>、\(x_2\)は<code>4</code></li>
 <li>負のリテラル: \(\lnot x_0\)は<code>1</code>、\(\lnot x_1\)は<code>3</code>、\(\lnot x_2\)は<code>5</code></li>
 </ul>
-<p>正/負のリテラルから命題変数を取得するには現在の値から1ビット右にシフト(1/2)するだけです。</p>
+<p>少しトリッキーなのですが、正/負のリテラルを正の整数として表現することでSATソルバのデータ構造や前処理で役に立ちます。</p>
 <p>以下が<code>Lit</code>のコードです。また必要な関数も定義しました。</p>
 <pre><code class="language-cpp">// x is
 // even: positive x0 (0 -&gt; x0, 2 -&gt; x1)
@@ -160,10 +161,15 @@ inline Lit operator~(Lit p) {
 <ul>
 <li><code>bool pos()</code>: <code>true</code>なら正のリテラル</li>
 <li><code>bool neg()</code>: <code>true</code>なら負のリテラル</li>
-<li><code>Var var()</code>: 命題変数を取得</li>
-<li><code>Lit operator~(Lit p)</code>: リテラルの否定(\(x_0\) -&gt; \(\lnot x_0\), \(\lnot x_0\) -&gt; \(x_0\))</li>
+<li>
+<p><code>Var var()</code>: 命題変数を取得
+正/負のリテラルから命題変数は現在の値から1ビット右にシフト(1/2)</p>
+</li>
+<li>
+<p><code>Lit operator~(Lit p)</code>: リテラルの否定(\(x_0\) -&gt; \(\lnot x_0\), \(\lnot x_0\) -&gt; \(x_0\))</p>
+</li>
 </ul>
-<p>以下の関数は<code>Variable</code>や<code>Lit</code>をindexとして<code>std::vector</code>のデータ構造が必要となるため定義した。</p>
+<p>以下の関数は<code>Variable</code>や<code>Lit</code>をindexとした<code>std::vector</code>のデータ構造が必要となるため定義した。</p>
 <ul>
 <li><code>size_t vidx()</code>: 命題変数に変換して<code>size_t</code>として取得</li>
 <li><code>size_t lidx()</code>: リテラルを<code>size_t</code>として取得</li>
