@@ -55,6 +55,18 @@ inline Lit operator~(Lit p) {
   q.x ^= 1;
   return q;
 }
+inline Lit operator!(Lit p) { return ~p; }
+
+std::ostream &operator<<(std::ostream &os, const Lit &lit) {
+  os << (lit.neg() ? "!x" : "x") << lit.var();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Clause &clause) {
+  std::for_each(clause.begin(), clause.end(),
+                [&](Lit lit) { os << lit << " "; });
+  return os;
+}
 
 struct Heap {
   std::vector<Var> heap;
@@ -167,16 +179,6 @@ struct Heap {
     }
   }
 };
-std::ostream &operator<<(std::ostream &os, const Lit &lit) {
-  os << (lit.neg() ? "!x" : "x") << lit.var();
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, const Clause &clause) {
-  std::for_each(clause.begin(), clause.end(),
-                [&](Lit lit) { os << lit << " "; });
-  return os;
-}
 
 class Solver {
 public:
@@ -276,7 +278,7 @@ public:
     assert(clause.size() > 1);
     for (const auto idx : {0, 1}) {
       std::vector<CWRef> &watcher =
-          watchers[(~clause[static_cast<size_t>(idx)]).lidx()];
+          watchers[(!clause[static_cast<size_t>(idx)]).lidx()];
 
       for (size_t i = 0; i < watcher.size(); i++) {
         assert(!watcher[i].expired());
@@ -292,8 +294,8 @@ public:
   void watch_clause(const CRef &cr) {
     const Clause &clause = *cr;
     assert(clause.size() > 1);
-    watchers[(~clause[0]).lidx()].push_back(cr);
-    watchers[(~clause[1]).lidx()].push_back(cr);
+    watchers[(!clause[0]).lidx()].push_back(cr);
+    watchers[(!clause[1]).lidx()].push_back(cr);
   }
   void attach_clause(const CRef &cr, bool learnt = false) {
 
@@ -322,7 +324,7 @@ public:
         return;
       }
       if (i >= 1) {
-        if (ps[i] == ~ps[i - 1]) {
+        if (ps[i] == !ps[i - 1]) {
           return;
         }
         if (ps[i] == ps[i - 1]) {
@@ -348,7 +350,7 @@ public:
     while (que_head < que.size()) {
       assert(que_head >= 0);
       const Lit lit = que[que_head++];
-      const Lit nlit = ~lit;
+      const Lit nlit = !lit;
 
       std::vector<CWRef> &watcher = watchers[lit.lidx()];
       for (size_t i = 0; i < watcher.size();) {
@@ -382,7 +384,7 @@ public:
             watcher[i] = watcher.back();
             watcher.pop_back();
             // New watch
-            watchers[(~clause[1]).lidx()].push_back(cr);
+            watchers[(!clause[1]).lidx()].push_back(cr);
             goto nextclause;
           }
         }
@@ -473,7 +475,7 @@ public:
     }
     assert(first_uip.has_value());
     // learnt_clause[0] = !first_uip
-    learnt_clause.push_back(~(first_uip.value()));
+    learnt_clause.push_back(!(first_uip.value()));
     std::swap(learnt_clause[0], learnt_clause.back());
 
     // Back Jump
