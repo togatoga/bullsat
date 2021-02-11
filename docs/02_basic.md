@@ -1,6 +1,4 @@
-#　基本的な型とクラスの定義
-
-## SAT問題をコードに落とし込む
+# SAT問題をコードで表現
 $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$
@@ -17,7 +15,7 @@ using Clause = std::vector<Lit>; //節: (x1 or !x2 or x3)
 - リテラル(`Lit`) `struct`
 - 節(`Clause`) `std::vector<Lit>`
 
-### リテラルの設計
+### リテラルの実装
 リテラルは`正`のリテラル\\(x_1\\)と`負`のリテラル\\(\lnot x_1\\)が存在します。  
 正のリテラルは`偶数`、負のリテラルは`奇数`として表現します。
 
@@ -59,6 +57,12 @@ inline Lit operator~(Lit p) {
   q.x ^= 1;
   return q;
 }
+
+std::ostream &operator<<(std::ostream &os, const Lit &lit) {
+  os << (lit.neg() ? "!x" : "x") << lit.var();
+  return os;
+}
+
 ```
 
 - `bool pos()`: `true`なら正のリテラル
@@ -105,5 +109,12 @@ int main() {
   cerr << "===================== test ===================== " << endl;
   test_lit();
 }
+```
 
+テストコードのコンパイルと実行をしてテストが通ることを確認しましょう。
+```bash
+% make test
+./test
+===================== test =====================
+==================== test_lit ====================
 ```
