@@ -60,7 +60,7 @@
                     </li>
                 </ul>
                 <ul>
-                    <li class="toctree-l1"><a class="reference internal" href="02_basic/">02 basic</a>
+                    <li class="toctree-l1"><a class="reference internal" href="02_basic/">SAT問題をコードで表現</a>
                     </li>
                 </ul>
       </div>
@@ -119,7 +119,7 @@ $$
 (x_1 \lor \lnot x_2 \lor x_3) \land (\lnot x_1 \lor x_2) \land (x_1 \lor x_2 \lor \lnot x_3) \land (x_1 \lor x_3) \land (\lnot x_1 \lor \lnot x_2 \lor x_3)
 $$</p>
 <p>Clauseの長さが3以上(e.g. \((x_2\lor x_3\lor\lnot x_1)\)のSAT問題はNP完全という問題に属し、効率的に解けるアルゴリズムが無いと一般的には考えられています。<br />
-SAT問題を解くソフトウェアを<code>SATソルバ</code>と呼ばれます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(<code>CDCL</code>)が挙げられます。<br />
+SAT問題を解くソフトウェアを<code>SATソルバ</code>と呼びます。SATソルバの大きな性能向上として、Conflict-Driven-Clause-Learning(<code>CDCL</code>)が挙げられます。<br />
 CDCLとは矛盾(<code>Conflict</code>)から矛盾の原因となった変数の割り当てを防ぐ新たな節(<code>Clause</code>)を導出して、探索の枝刈りを行うことで高速にSATを解くことができます。CDCLアルゴリズムによって扱える変数の数が増え、現実問題から派生した数十万~数百万の変数のSAT問題を解けるようになりました。</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -204,5 +204,5 @@ InstalledDir: /usr/bin
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-02-11 07:23:10.614064+00:00
+Build Date UTC : 2021-02-11 07:50:55.149424+00:00
 -->

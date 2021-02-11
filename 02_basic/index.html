@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../img/favicon.ico">
-  <title>02 basic - ゼロから作るCDCL SATソルバ(bullsat)</title>
+  <title>SAT問題をコードで表現 - ゼロから作るCDCL SATソルバ(bullsat)</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../css/theme.css" />
@@ -18,7 +18,7 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "02 basic";
+    var mkdocs_page_name = "SAT\u554f\u984c\u3092\u30b3\u30fc\u30c9\u3067\u8868\u73fe";
     var mkdocs_page_input_path = "02_basic.md";
     var mkdocs_page_url = null;
   </script>
@@ -56,15 +56,11 @@
                     </li>
                 </ul>
                 <ul class="current">
-                    <li class="toctree-l1 current"><a class="reference internal current" href="./">02 basic</a>
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">SAT問題をコードで表現</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#sat">SAT問題をコードに落とし込む</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#_2">リテラルの設計</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_1">リテラルの実装</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#_3">テスト</a>
-    </li>
-        </ul>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">テスト</a>
     </li>
     </ul>
                     </li>
@@ -90,7 +86,7 @@
     
       
     
-    <li>02 basic</li>
+    <li>SAT問題をコードで表現</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -101,8 +97,7 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="_1">基本的な型とクラスの定義</h1>
-<h2 id="sat">SAT問題をコードに落とし込む</h2>
+                <h1 id="sat">SAT問題をコードで表現</h1>
 <p>$$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$
@@ -118,7 +113,7 @@ using Clause = std::vector&lt;Lit&gt;; //節: (x1 or !x2 or x3)
 <li>リテラル(<code>Lit</code>) <code>struct</code></li>
 <li>節(<code>Clause</code>) <code>std::vector&lt;Lit&gt;</code></li>
 </ul>
-<h3 id="_2">リテラルの設計</h3>
+<h3 id="_1">リテラルの実装</h3>
 <p>リテラルは<code>正</code>のリテラル\(x_1\)と<code>負</code>のリテラル\(\lnot x_1\)が存在します。<br />
 正のリテラルは<code>偶数</code>、負のリテラルは<code>奇数</code>として表現します。</p>
 <ul>
@@ -157,6 +152,12 @@ inline Lit operator~(Lit p) {
   q.x ^= 1;
   return q;
 }
+
+std::ostream &amp;operator&lt;&lt;(std::ostream &amp;os, const Lit &amp;lit) {
+  os &lt;&lt; (lit.neg() ? &quot;!x&quot; : &quot;x&quot;) &lt;&lt; lit.var();
+  return os;
+}
+
 </code></pre>
 <ul>
 <li><code>bool pos()</code>: <code>true</code>なら正のリテラル</li>
@@ -174,7 +175,7 @@ inline Lit operator~(Lit p) {
 <li><code>size_t vidx()</code>: 命題変数に変換して<code>size_t</code>として取得</li>
 <li><code>size_t lidx()</code>: リテラルを<code>size_t</code>として取得</li>
 </ul>
-<h3 id="_3">テスト</h3>
+<h3 id="_2">テスト</h3>
 <p>実装したリテラルに対してテストを<code>test.cpp</code>に追加しましょう。</p>
 <pre><code class="language-cpp">void test_lit() {
   test_start(__func__);
@@ -204,7 +205,12 @@ int main() {
   cerr &lt;&lt; &quot;===================== test ===================== &quot; &lt;&lt; endl;
   test_lit();
 }
-
+</code></pre>
+<p>テストコードのコンパイルと実行をしてテストが通ることを確認しましょう。</p>
+<pre><code class="language-bash">% make test
+./test
+===================== test =====================
+==================== test_lit ====================
 </code></pre>
               
             </div>
