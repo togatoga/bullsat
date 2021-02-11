@@ -1,4 +1,4 @@
-# SAT問題をコードで表現
+# 基本的な型とクラスの定義
 $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$
