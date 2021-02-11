@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../img/favicon.ico">
-  <title>クラスと型の設計 - ゼロから作るCDCL SATソルバ(bullsat)</title>
+  <title>02 basic - ゼロから作るCDCL SATソルバ(bullsat)</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../css/theme.css" />
@@ -18,7 +18,7 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "\u30af\u30e9\u30b9\u3068\u578b\u306e\u8a2d\u8a08";
+    var mkdocs_page_name = "02 basic";
     var mkdocs_page_input_path = "02_basic.md";
     var mkdocs_page_url = null;
   </script>
@@ -56,8 +56,16 @@
                     </li>
                 </ul>
                 <ul class="current">
-                    <li class="toctree-l1 current"><a class="reference internal current" href="./">クラスと型の設計</a>
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">02 basic</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#sat">SAT問題をコードに落とし込む</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_2">リテラルの設計</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">テスト</a>
+    </li>
+        </ul>
+    </li>
     </ul>
                     </li>
                 </ul>
@@ -82,7 +90,7 @@
     
       
     
-    <li>クラスと型の設計</li>
+    <li>02 basic</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -93,7 +101,105 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="_1">クラスと型の設計</h1>
+                <h1 id="_1">基本的な型とクラスの定義</h1>
+<h2 id="sat">SAT問題をコードに落とし込む</h2>
+<p>$$
+(x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
+$$
+上記のようなSAT問題をプログラムが理解する形に表現する必要があります。<code>bullsat</code>では以下のように定義しました。</p>
+<pre><code class="language-cpp">namespace bullsat {
+using Var = int; //命題変数: x1
+struct Lit;　//リテラル: x1 or !x1
+using Clause = std::vector&lt;Lit&gt;; //節: (x1 or !x2 or x3)
+}
+</code></pre>
+<ul>
+<li>命題変数(<code>Var</code>) <code>int</code></li>
+<li>リテラル(<code>Lit</code>) <code>struct</code></li>
+<li>節(<code>Clause</code>) <code>std::vector&lt;Lit&gt;</code></li>
+</ul>
+<h3 id="_2">リテラルの設計</h3>
+<p>リテラルは<code>正</code>のリテラル(\(x_1\))と<code>負</code>のリテラル((\lnot x_1\))が存在します。少しトリッキーなのですが、正のリテラルは<code>偶数</code>、負のリテラルは<code>奇数</code>として表現します。</p>
+<ul>
+<li>正のリテラル: \(x_0\)は<code>0</code>、\(x_1\)は<code>2</code>、\(x_2\)は<code>4</code></li>
+<li>負のリテラル: \(\lnot x_0\)は<code>1</code>、\(\lnot x_1\)は<code>3</code>、\(\lnot x_2\)は<code>5</code></li>
+</ul>
+<p>正/負のリテラルから命題変数を取得するには現在の値から1ビット右にシフト(1/2)するだけです。</p>
+<p>以下が<code>Lit</code>のコードです。また必要な関数も定義しました。</p>
+<pre><code class="language-cpp">// x is
+// even: positive x0 (0 -&gt; x0, 2 -&gt; x1)
+// odd: negative !x0 (1 -&gt; !x0, 3 -&gt; !x1)
+struct Lit {
+  int x;
+  Lit() = default;
+  Lit(const Lit &amp;lit) = default;
+  // 0-index
+  // Lit(0, true) means x0
+  // Lit(0, false) means !x0
+  Lit(Var v, bool positive) {
+    assert(v &gt;= 0);
+    x = positive ? 2 * v : 2 * v + 1;
+  }
+  bool operator==(Lit lit) const { return x == lit.x; }
+  bool operator!=(Lit lit) const { return x != lit.x; }
+  bool operator&lt;(Lit lit) const { return x &lt; lit.x; }
+  bool pos() const { return !neg(); }
+  bool neg() const { return x &amp; 1; }
+  Var var() const { return x &gt;&gt; 1; }
+  size_t vidx() const { return static_cast&lt;size_t&gt;(var()); }
+  size_t lidx() const { return static_cast&lt;size_t&gt;(x); }
+};
+
+// ~x0 = !x0
+inline Lit operator~(Lit p) {
+  Lit q(p);
+  q.x ^= 1;
+  return q;
+}
+</code></pre>
+<ul>
+<li><code>bool pos()</code>: <code>true</code>なら正のリテラル</li>
+<li><code>bool neg()</code>: <code>true</code>なら負のリテラル</li>
+<li><code>Var var()</code>: 命題変数を取得</li>
+<li><code>Lit operator~(Lit p)</code>: リテラルの否定(\(x_0\) -&gt; \(\lnot x_0\), \(\lnot x_0\) -&gt; \(x_0\))</li>
+</ul>
+<p>以下の関数は<code>Variable</code>や<code>Lit</code>をindexとして<code>std::vector</code>のデータ構造が必要となるため定義した。</p>
+<ul>
+<li><code>size_t vidx()</code>: 命題変数に変換して<code>size_t</code>として取得</li>
+<li><code>size_t lidx()</code>: リテラルを<code>size_t</code>として取得</li>
+</ul>
+<h3 id="_3">テスト</h3>
+<p>実装したリテラルに対してテストを<code>test.cpp</code>に追加しましょう。</p>
+<pre><code class="language-cpp">void test_lit() {
+  test_start(__func__);
+  Lit x0 = Lit(0, true); // x0
+  Lit nx0 = ~x0;         // !x0
+  assert(x0.lidx() == 0);
+  assert(nx0.lidx() == 1);
+
+  assert(x0.pos());
+  assert(!x0.neg());
+  assert(nx0.neg());
+  assert(x0.pos());
+
+  assert(x0.var() == nx0.var());
+
+  assert(x0 != nx0);
+  assert(~x0 == nx0);
+  assert(x0.lidx() == (~nx0).lidx());
+
+  Lit x1 = Lit(1, true); // x1
+  assert(x1.lidx() == 2);
+  assert(x0 &lt; x1);
+  assert(!x1.neg());
+}
+
+int main() {
+  cerr &lt;&lt; &quot;===================== test ===================== &quot; &lt;&lt; endl;
+  test_lit();
+}
+
+</code></pre>
               
             </div>
           </div>

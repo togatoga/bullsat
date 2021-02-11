@@ -58,7 +58,7 @@
                     </li>
                 </ul>
                 <ul>
-                    <li class="toctree-l1"><a class="reference internal" href="../02_basic/">クラスと型の設計</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../02_basic/">02 basic</a>
                     </li>
                 </ul>
       </div>
@@ -108,11 +108,28 @@
 <li><code>Makefile</code> release/debugビルドやテスト</li>
 </ul>
 <p>各章では<code>bullsat.hpp</code>にSATソルバのアルゴリズムを実装し、並行して<code>test.cpp</code>にテストを書いていきます。SATソルバが完成した後に<code>main.cpp</code>にSATソルバをコマンドラインappとして実装します。
-テスト自体は書かなくても問題ありませんが、以下の理由でテストを書くことをおすすめします。</p>
+本記事では小さい機能をインクリメンタルに実装します。それに合わせてテストコードを<code>test.cpp</code>に追加していくスタイルで進めます。<br />
+もちろんテストは書かなくても問題ありませんが、以下の理由でテストを書くことをおすすめします。</p>
 <ol>
-<li>テストコードを書くことで、実装したコードの理解を深める</li>
+<li>テストコードを書くことで実装したコードの理解を深める</li>
 <li>SATソルバの実装は非常にバグを生み出しやすく、またバグの原因を探るのが非常に困難</li>
 </ol>
+<p>以下が<code>test.cpp</code>のコードです。</p>
+<pre><code class="language-cpp">#include &quot;bullsat.hpp&quot;
+#include &lt;iostream&gt;
+using namespace std;
+using namespace bullsat;
+
+void test_start(const char *funcname) {
+  cerr &lt;&lt; &quot;==================== &quot; &lt;&lt; funcname
+       &lt;&lt; &quot; ==================== &quot; &lt;&lt; endl;
+}
+
+int main() {
+  cerr &lt;&lt; &quot;===================== test ===================== &quot; &lt;&lt; endl;
+}
+
+</code></pre>
 <p>任意ですがフォーマットツールを導入するのをオススメします。本記事では<code>clang-format</code>を使用します。<br />
 各章では細かくテストコードを動かしたり、都度コンパイルするのでMakefileを用意しました。</p>
 <pre><code class="language-bash">APP=bullsat
@@ -155,7 +172,7 @@ clean:
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../02_basic/" class="btn btn-neutral float-right" title="クラスと型の設計">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../02_basic/" class="btn btn-neutral float-right" title="02 basic">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
         <a href=".." class="btn btn-neutral" title="ゼロから作るCDCL SATソルバ(bullsat)"><span class="icon icon-circle-arrow-left"></span> Previous</a>

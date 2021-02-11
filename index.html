@@ -60,7 +60,7 @@
                     </li>
                 </ul>
                 <ul>
-                    <li class="toctree-l1"><a class="reference internal" href="02_basic/">クラスと型の設計</a>
+                    <li class="toctree-l1"><a class="reference internal" href="02_basic/">02 basic</a>
                     </li>
                 </ul>
       </div>
@@ -97,7 +97,7 @@
               
                 <h1 id="cdcl-satbullsat">ゼロから作るCDCL SATソルバ(bullsat)</h1>
 <h2 id="_1">はじめに</h2>
-<p>充足可能性問題(satisfiability problem)とは与えられた二値(true/false)の命題論理式が充足可能(<code>SAT</code>)な変数の真偽値の割り当てが存在するか、またはそういった割り当てが存在しない充足不能(<code>UNSAT</code>)かを判定する問題です。  </p>
+<p>充足可能性問題(satisfiability problem)とは与えられた二値(true/false)の命題論理式が充足可能(<code>SAT</code>)な変数の真偽値の割り当てが存在するか、またはそういった割り当てが存在しない充足不能(<code>UNSAT</code>)かを判定する問題です。  　</p>
 <ul>
 <li>命題変数(<code>Variable</code>) true/falseの二値変数</li>
 <li>リテラル(<code>Literal</code>) 命題変数またはその否定</li>
@@ -108,7 +108,8 @@
 $$
 (x_1\lor\lnot x_3)\land(x_2\lor x_3\lor\lnot x_1)
 $$</p>
-<p>\(x_1\)と\(\lnot x_1\)はリテラル、\((x_1\lor\lnot x_3)\)はClauseです。
+<p>\(x_1\)と\(\lnot x_1\)はリテラルです。更に\(x_1\)は<code>正</code>のリテラル、\(\lnot x_1\)は<code>負</code>のリテラルと呼びます。</p>
+<p>\((x_1\lor\lnot x_3)\)はClauseです。
 上記の論理式はSATです。以下がSATな真偽値の割り当てです。
 $$
 x_1=true,x_2=true,x_3=false
@@ -203,5 +204,5 @@ InstalledDir: /usr/bin
 
 <!--
 MkDocs version : 1.1.2
-Build Date UTC : 2021-01-17 14:03:45.783257+00:00
+Build Date UTC : 2021-02-11 07:11:54.927119+00:00
 -->
