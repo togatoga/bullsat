@@ -60,6 +60,12 @@ std::ostream &operator<<(std::ostream &os, const Lit &lit) {
   os << (lit.neg() ? "!x" : "x") << lit.var();
   return os;
 }
+
+std::ostream &operator<<(std::ostream &os, const Clause &clause) {
+  std::for_each(clause.begin(), clause.end(),
+                [&](Lit lit) { os << lit << " "; });
+  return os;
+}
 ```
 
 `bool pos()`: trueなら正のリテラル  
@@ -114,3 +120,5 @@ int main() {
 ===================== test =====================
 ==================== test_lit ====================
 ```
+
+
