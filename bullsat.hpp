@@ -17,13 +17,10 @@
 namespace bullsat {
 
 // definitions
-enum class Status { Sat, Unsat, Unknown };
 enum class LitBool { True, False, Undefine };
 using Var = int;
 struct Lit;
 using Clause = std::vector<Lit>;
-using CRef = std::shared_ptr<Clause>;
-using CWRef = std::weak_ptr<Clause>;
 
 // x is
 // even: positive x0 (0 -> x0, 2 -> x1)
@@ -178,6 +175,14 @@ struct Heap {
     }
   }
 };
+
+
+// SAT Solver
+enum class Status { Sat, Unsat, Unknown };
+class Solver;
+// region
+using CRef = std::shared_ptr<Clause>;
+using CWRef = std::weak_ptr<Clause>;
 
 class Solver {
 public:
