@@ -2,7 +2,7 @@ site_name: ゼロから作るCDCL SATソルバ(bullsat)
 
 theme: readthedocs
 markdown_extensions:
-    - admonition
+    - mdx_math
 
 extra_javascript: 
-  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML
+  - http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
