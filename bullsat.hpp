@@ -56,6 +56,17 @@ inline Lit operator~(Lit p) {
   return q;
 }
 
+std::ostream &operator<<(std::ostream &os, const Lit &lit) {
+  os << (lit.neg() ? "!x" : "x") << lit.var();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Clause &clause) {
+  std::for_each(clause.begin(), clause.end(),
+                [&](Lit lit) { os << lit << " "; });
+  return os;
+}
+
 struct Heap {
   std::vector<Var> heap;
   std::vector<std::optional<size_t>> indices;
@@ -167,16 +178,6 @@ struct Heap {
     }
   }
 };
-std::ostream &operator<<(std::ostream &os, const Lit &lit) {
-  os << (lit.neg() ? "!x" : "x") << lit.var();
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, const Clause &clause) {
-  std::for_each(clause.begin(), clause.end(),
-                [&](Lit lit) { os << lit << " "; });
-  return os;
-}
 
 class Solver {
 public:
